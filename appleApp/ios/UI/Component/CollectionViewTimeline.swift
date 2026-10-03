@@ -25,10 +25,13 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
     // Changing a non-nil key replaces the list while retaining its scroll position.
     let contentKey: AnyHashable?
     let onIsAtTopChanged: (Bool) -> Void
+    let onIsNearTopChanged: (Bool) -> Void
+    let readingPositionSync: ReadingPositionSync?
     @Environment(\.timelineAppearance) private var timelineAppearance
     @Environment(\.globalAppearance) private var globalAppearance
     @Environment(\.aiConfig) private var aiConfig
     @Environment(\.translateConfig) private var translateConfig
+    @Environment(\.appSettings) private var appSettings
     @Environment(\.networkKind) private var networkKind
     @Environment(\.openURL) private var openURL
     @Environment(\.refresh) private var refreshAction: RefreshAction?
@@ -43,7 +46,9 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
         accessoryItems: [UITimelineCollectionViewAccessoryItem] = [],
         suppressInitialRefreshIndicator: Bool = false,
         contentKey: AnyHashable? = nil,
-        onIsAtTopChanged: @escaping (Bool) -> Void = { _ in }
+        onIsAtTopChanged: @escaping (Bool) -> Void = { _ in },
+        onIsNearTopChanged: @escaping (Bool) -> Void = { _ in },
+        readingPositionSync: ReadingPositionSync? = nil
     ) {
         self.data = data
         self.headerState = headerState
@@ -55,6 +60,8 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
         self.suppressInitialRefreshIndicator = suppressInitialRefreshIndicator
         self.contentKey = contentKey
         self.onIsAtTopChanged = onIsAtTopChanged
+        self.onIsNearTopChanged = onIsNearTopChanged
+        self.readingPositionSync = readingPositionSync
     }
 
     func makeUIViewController(context: Context) -> UITimelineCollectionViewController {
@@ -72,12 +79,15 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
             { await action() }
         }
         controller.onIsAtTopChanged = onIsAtTopChanged
+        controller.onIsNearTopChanged = onIsNearTopChanged
+        controller.readingPositionSync = readingPositionSync
         controller.topContentInset = topContentInset
         controller.topScrollIndicatorInset = topContentInset
         controller.appearance = TimelineUIKitAppearance(
             timeline: timelineAppearance,
             fontSizeDiff: globalAppearance.fontSizeDiff,
-            showOriginalWithTranslation: translateConfig.showOriginalWithTranslation
+            showOriginalWithTranslation: translateConfig.showOriginalWithTranslation,
+            tintByNetwork: appSettings.tintPostsByNetwork
         )
         controller.aiTldrEnabled = aiConfig.tldr
         controller.openURL = { url in
@@ -114,6 +124,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
 
     // Use Int for section and String for item to avoid Sendable issues
     private static let sectionAccessories = 0
+    private static let nearTopItemCount = 5
     private static let sectionMain = 1
     private static let sectionFooter = 2
     nonisolated private static let sectionHeader = 3
@@ -142,6 +153,10 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
 
     var refreshCallback: (() async -> Void)?
     var onIsAtTopChanged: ((Bool) -> Void)?
+    var onIsNearTopChanged: ((Bool) -> Void)?
+    var readingPositionSync: ReadingPositionSync? {
+        didSet { readingPositionSync?.target = self }
+    }
     var onContentOffsetChanged: ((CGFloat) -> Void)?
     var onScrollInteractionBegan: (() -> Void)?
     var openURL: ((URL) -> Void)?
@@ -309,6 +324,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
     private var pendingRefreshControlOffsetY: CGFloat?
     private var hasCompletedInitialRefreshCycle = false
     private var lastReportedIsAtTop: Bool?
+    private var lastReportedIsNearTop: Bool?
     private var renderedPlan: SnapshotPlan?
     private var lastRenderHashMap: [String: Int32] { renderedPlan?.renderHashMap ?? [:] }
     private struct Input {
@@ -422,6 +438,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
             rememberProfileMediaScrollAnchor()
         }
         reportIsAtTop()
+        reportIsNearTop()
         revealRefreshControlIfNeeded()
         // Insets or a size change can finish/cancel a refresh reveal without a
         // scroll-end delegate callback. Resume its queued input on the next layout.
@@ -1346,6 +1363,17 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
         onIsAtTopChanged?(isAtTop)
     }
 
+    // Within a few posts of the newest one: close enough to keep loading newer posts above.
+    private func reportIsNearTop() {
+        let firstVisible = collectionView.indexPathsForVisibleItems
+            .compactMap { dataSource.itemIdentifier(for: $0).flatMap { itemIndexMap[$0] } }
+            .min()
+        let isNearTop = effectiveContentOffsetY <= 1 || (firstVisible.map { $0 < Self.nearTopItemCount } ?? false)
+        guard lastReportedIsNearTop != isNearTop else { return }
+        lastReportedIsNearTop = isNearTop
+        onIsNearTopChanged?(isNearTop)
+    }
+
     private var allowsScrollAnchorRestoration: Bool {
         !collectionView.isTracking &&
             !collectionView.isDragging &&
@@ -1438,6 +1466,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
         if finalize {
             isSnapshotReadyForReadingPosition = true
             if collectionView.hasReadingPosition { collectionView.setNeedsLayout() }
+            if content.state == .loaded { readingPositionSync?.timelineDidLoad() }
         }
         defer { if finalize { finishPendingRefreshIfReady() } }
         restoreReloadPositionIfReady()
@@ -1808,6 +1837,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
     // MARK: - UIScrollViewDelegate
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        readingPositionSync?.userDidScroll()
         collectionView.endProgrammaticScrolling()
         onScrollInteractionBegan?()
         beginScrollInteraction()
@@ -1838,6 +1868,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
             rememberProfileMediaScrollAnchor()
         }
         reportIsAtTop()
+        reportIsNearTop()
         onContentOffsetChanged?(effectiveContentOffsetY)
         autoplay.didScroll()
     }
@@ -1870,11 +1901,48 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
     }
 
     private func endScrollInteraction() {
+        saveReadingPosition()
         collectionView.endScrollInteraction()
         scheduleSubmission()
         finishPendingRefreshIfReady()
         rememberProfileMediaScrollAnchor()
         autoplay.reconsider()
         scheduleDeferredPoolCleanup()
+    }
+}
+
+// MARK: - Reading position sync
+
+extension UITimelineCollectionViewController: ReadingPositionTarget {
+    private static let readingPositionAppendAttempts = 10
+
+    fileprivate func saveReadingPosition() {
+        guard let readingPositionSync,
+              case .item(let id, _, _) = collectionView.captureReadingPosition(),
+              let index = itemIndexMap[id], content.items.indices.contains(index),
+              let post = content.items[index]?.post else { return }
+        readingPositionSync.save(itemID: id, createdAt: post.createdAt.platformValue)
+    }
+
+    func scrollToReadingPosition(itemID: String, createdAt: Date) {
+        scrollToReadingPosition(itemID: itemID, createdAt: createdAt, attemptsLeft: Self.readingPositionAppendAttempts)
+    }
+
+    // The exact post, else the newest loaded post at or before it. A post older than
+    // everything loaded pages older posts in and tries again, a bounded number of times.
+    private func scrollToReadingPosition(itemID: String, createdAt: Date, attemptsLeft: Int) {
+        guard let plan = renderedPlan, !plan.itemIDs.isEmpty, !collectionView.isScrollInteractionActive else { return }
+        let target = plan.indexMap[itemID] != nil ? itemID : content.items.lazy
+            .compactMap { $0 }
+            .first { ($0.post?.createdAt.platformValue).map { $0 <= createdAt } ?? false }?.id
+        if let target {
+            collectionView.restoreReadingPosition(.item(id: target, distanceFromTop: 0, itemOrder: plan.itemIDs))
+            return
+        }
+        guard attemptsLeft > 0, content.footer != .end, !content.items.isEmpty else { return }
+        content.access(content.items.count - 1)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.scrollToReadingPosition(itemID: itemID, createdAt: createdAt, attemptsLeft: attemptsLeft - 1)
+        }
     }
 }

@@ -16,6 +16,8 @@ struct UITimelinePagingView: View {
     let suppressInitialRefreshIndicator: Bool
     let columnPolicy: TimelineColumnPolicy
     let onIsAtTopChanged: (Bool) -> Void
+    let onIsNearTopChanged: (Bool) -> Void
+    let readingPositionSync: ReadingPositionSync?
 
     init(
         data: PagingState<UiTimelineV2>,
@@ -26,7 +28,9 @@ struct UITimelinePagingView: View {
         accessoryItems: [UITimelineCollectionViewAccessoryItem] = [],
         suppressInitialRefreshIndicator: Bool = false,
         columnPolicy: TimelineColumnPolicy = .adaptive,
-        onIsAtTopChanged: @escaping (Bool) -> Void = { _ in }
+        onIsAtTopChanged: @escaping (Bool) -> Void = { _ in },
+        onIsNearTopChanged: @escaping (Bool) -> Void = { _ in },
+        readingPositionSync: ReadingPositionSync? = nil
     ) {
         self.data = data
         self.detailStatusKey = detailStatusKey
@@ -37,6 +41,8 @@ struct UITimelinePagingView: View {
         self.suppressInitialRefreshIndicator = suppressInitialRefreshIndicator
         self.columnPolicy = columnPolicy
         self.onIsAtTopChanged = onIsAtTopChanged
+        self.onIsNearTopChanged = onIsNearTopChanged
+        self.readingPositionSync = readingPositionSync
     }
 
     var body: some View {
@@ -57,7 +63,9 @@ struct UITimelinePagingView: View {
                     columnCount: columnPolicy.columnCount(for: proxy.size.width),
                     accessoryItems: accessoryItems,
                     suppressInitialRefreshIndicator: suppressInitialRefreshIndicator,
-                    onIsAtTopChanged: onIsAtTopChanged
+                    onIsAtTopChanged: onIsAtTopChanged,
+                    onIsNearTopChanged: onIsNearTopChanged,
+                    readingPositionSync: readingPositionSync
                 )
                 .id("\(accountID):\(key)")
                 .ignoresSafeArea(edges: .vertical)

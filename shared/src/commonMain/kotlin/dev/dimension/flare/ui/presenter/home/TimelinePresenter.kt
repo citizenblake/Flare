@@ -103,6 +103,7 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
     private val timelineTabItemId: String?
     private val isHomeTimeline: Boolean
     private val contextMediator = MutableStateFlow<PostContextRemoteMediator?>(null)
+    private val timelineMediator = MutableStateFlow<TimelineRemoteMediator?>(null)
 
     private val timelineFilterConfigFlow: Flow<TimelineFilterConfig> by lazy {
         observeTimelineFilterConfig(
@@ -216,7 +217,7 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                                 settingsRepository.appSettings.first().refreshHomeTimelineOnLaunch
                             }
                         },
-                    )
+                    ).also { timelineMediator.value = it }
                 }
             Pager(
                 config = offsetPagingConfig,
@@ -281,6 +282,13 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                         onRetry()
                     }
             }
+
+            // Timelines without a local cache can only be refreshed, which replaces them.
+            override suspend fun loadNewer(refreshIfUncached: Boolean): Int =
+                timelineMediator.value?.loadNewer(offsetPagingConfig.pageSize) ?: run {
+                    if (refreshIfUncached) refresh()
+                    0
+                }
         }
     }
 }
@@ -297,6 +305,9 @@ public interface TimelineState {
     public fun refreshAsync()
 
     public suspend fun refresh()
+
+    /** Inserts newer posts above the cached ones without moving the reader. Returns how many. */
+    public suspend fun loadNewer(refreshIfUncached: Boolean): Int = 0
 }
 
 internal fun UiTimelineV2.matchesKeywordFilters(filters: List<KeywordFilterPattern>): Boolean =

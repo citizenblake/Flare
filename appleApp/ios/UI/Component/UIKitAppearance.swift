@@ -106,6 +106,7 @@ struct StatusUIKitAppearance: Equatable {
 
 struct TimelineUIKitAppearance: Equatable {
     let status: StatusUIKitAppearance
+    let tintByNetwork: Bool
     let timelineDisplayMode: TimelineDisplayMode
     let timelineDisplayModeID: String
     let videoAutoplay: VideoAutoplay
@@ -131,8 +132,10 @@ struct TimelineUIKitAppearance: Equatable {
     init(
         timeline: TimelineAppearance,
         fontSizeDiff: Float = 0,
-        showOriginalWithTranslation: Bool = false
+        showOriginalWithTranslation: Bool = false,
+        tintByNetwork: Bool = false
     ) {
+        self.tintByNetwork = tintByNetwork
         status = StatusUIKitAppearance(
             timeline: timeline,
             fontSizeDiff: fontSizeDiff,
@@ -146,6 +149,7 @@ struct TimelineUIKitAppearance: Equatable {
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.status == rhs.status &&
+            lhs.tintByNetwork == rhs.tintByNetwork &&
             lhs.timelineDisplayModeID == rhs.timelineDisplayModeID &&
             lhs.videoAutoplayID == rhs.videoAutoplayID
     }
@@ -173,5 +177,25 @@ struct GalleryUIKitAppearance: Equatable {
             lhs.avatarShapeID == rhs.avatarShapeID &&
             lhs.postActionLayoutID == rhs.postActionLayoutID &&
             lhs.showOriginalWithTranslation == rhs.showOriginalWithTranslation
+    }
+}
+
+extension TimelineUIKitAppearance {
+    private static let blueskyTint = UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.10, green: 0.15, blue: 0.24, alpha: 1)
+        : UIColor(red: 0.91, green: 0.95, blue: 1.00, alpha: 1) }
+    private static let mastodonTint = UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.17, green: 0.12, blue: 0.25, alpha: 1)
+        : UIColor(red: 0.95, green: 0.92, blue: 1.00, alpha: 1) }
+
+    /// Background tint for a post's network, or nil to keep the default background.
+    func networkTint(for data: UiTimelineV2) -> UIColor? {
+        guard tintByNetwork else { return nil }
+        let platformId = (data as? UiTimelineV2.TimelinePostItem)?.post.platformId ?? (data as? UiTimelineV2.Post)?.platformId
+        switch platformId {
+        case "Bluesky": return Self.blueskyTint
+        case "Mastodon": return Self.mastodonTint
+        default: return nil
+        }
     }
 }

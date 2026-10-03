@@ -7,6 +7,10 @@ final class AdaptiveTimelineCardUIView: UIView, ManualLayoutMeasurable, Timeline
 
     var isPlainTimelineDisplayMode = true
     var isMultipleColumn: Bool = false
+    /// Replaces the card (or plain row) background, e.g. to mark a post's network.
+    var tint: UIColor? {
+        didSet { if tint != oldValue { applyMode() } }
+    }
 
     var index: Int = 0
     var totalCount: Int = 0
@@ -53,7 +57,7 @@ final class AdaptiveTimelineCardUIView: UIView, ManualLayoutMeasurable, Timeline
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        cardBackground.fillColor = UIColor.secondarySystemGroupedBackground.cgColor
+        applyMode()
     }
 
     private var useCardStyle: Bool {
@@ -61,6 +65,8 @@ final class AdaptiveTimelineCardUIView: UIView, ManualLayoutMeasurable, Timeline
     }
 
     private func applyMode() {
+        cardBackground.fillColor = (tint ?? .secondarySystemGroupedBackground).resolvedColor(with: traitCollection).cgColor
+        backgroundColor = useCardStyle ? nil : tint
         if useCardStyle {
             cardBackground.isHidden = false
             divider.isHidden = true

@@ -165,6 +165,7 @@ final class TimelineUIKitCollectionViewCell: UICollectionViewCell {
         }
         timelineCard.isPlainTimelineDisplayMode = appearance.isPlainTimelineDisplayMode
         timelineCard.isMultipleColumn = isMultipleColumn
+        timelineCard.tint = appearance.networkTint(for: data)
         timelineCard.configure(index: index, totalCount: totalCount)
 
         let itemKey = data.itemKey ?? ""

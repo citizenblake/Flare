@@ -33,6 +33,7 @@ internal class MixedRemoteMediator(
                 append(mediator.pagingKey)
             }
         }
+    internal val sources: List<CacheableRemoteLoader<UiTimelineV2>> get() = mediators
     private var currentMediators = mediators
     private val timeSources =
         mediators.mapIndexed { index, mediator ->

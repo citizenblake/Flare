@@ -128,6 +128,18 @@ public class SettingsPresenter : PresenterBase<SettingsPresenter.State>() {
                 }
             }
 
+            override fun updateTintPostsByNetwork(value: Boolean) {
+                updateAppSettings {
+                    copy(tintPostsByNetwork = value)
+                }
+            }
+
+            override fun updateHomeTimelineLoadNewerNearTop(value: Boolean) {
+                updateAppSettings {
+                    copy(homeTimelineLoadNewerNearTop = value)
+                }
+            }
+
             override fun updateAppSettings(block: AppSettings.() -> AppSettings) {
                 scope.launch {
                     withContext(Dispatchers.Main) {
@@ -207,6 +219,10 @@ public class SettingsPresenter : PresenterBase<SettingsPresenter.State>() {
         public fun updateRefreshHomeTimelineOnLaunch(value: Boolean)
 
         public fun updateHomeTimelineAutoRefreshInterval(value: TimelineAutoRefreshInterval)
+
+        public fun updateHomeTimelineLoadNewerNearTop(value: Boolean)
+
+        public fun updateTintPostsByNetwork(value: Boolean)
 
         @WebIgnore
         public fun updateAppSettings(block: AppSettings.() -> AppSettings)

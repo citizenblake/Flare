@@ -2,7 +2,7 @@ import XCTest
 
 final class TimelineInteractionTests: XCTestCase {
     @MainActor private func run(_ scenario: String, gesture: Bool = false) {
-        let app = XCUIApplication(bundleIdentifier: "dev.dimension.flare.timeline-tests")
+        let app = XCUIApplication(bundleIdentifier: "com.citizenblake.flare.timeline-tests")
         app.launchArguments = [scenario]
         app.launch()
         defer { app.terminate() }

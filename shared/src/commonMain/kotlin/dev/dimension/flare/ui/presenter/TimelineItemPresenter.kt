@@ -25,6 +25,8 @@ public class TimelineItemPresenter(
 
         public suspend fun refreshSuspend()
 
+        public suspend fun loadNewerSuspend(refreshIfUncached: Boolean): Int = 0
+
         public val isRefreshing: Boolean
     }
 
@@ -49,6 +51,8 @@ public class TimelineItemPresenter(
             override suspend fun refreshSuspend() {
                 state.refresh()
             }
+
+            override suspend fun loadNewerSuspend(refreshIfUncached: Boolean): Int = state.loadNewer(refreshIfUncached)
         }
     }
 }

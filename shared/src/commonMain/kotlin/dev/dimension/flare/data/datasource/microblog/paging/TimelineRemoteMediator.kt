@@ -6,8 +6,10 @@ import androidx.paging.PagingState
 import androidx.paging.RemoteMediator.MediatorResult
 import dev.dimension.flare.common.SnowflakeIdGenerator
 import dev.dimension.flare.data.database.cache.CacheDatabase
+import dev.dimension.flare.data.database.cache.connect
 import dev.dimension.flare.data.database.cache.mapper.saveToDatabase
 import dev.dimension.flare.data.database.cache.model.DbPagingTimelineWithStatus
+import dev.dimension.flare.data.datasource.microblog.MixedRemoteMediator
 import dev.dimension.flare.data.translation.NoopPreTranslationService
 import dev.dimension.flare.data.translation.PreTranslationService
 import dev.dimension.flare.model.AccountType
@@ -17,6 +19,13 @@ import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.asTimelinePostItem
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+
+private const val NEWER_KEY = "newer"
+private const val MAX_NEWER_PAGES = 5
 
 @OptIn(ExperimentalPagingApi::class)
 internal open class TimelineRemoteMediator(
@@ -35,6 +44,7 @@ internal open class TimelineRemoteMediator(
     ),
     RemoteLoader<DbPagingTimelineWithStatus> {
     private var suppressInitialPrepend = false
+    private val loadNewerLock = Mutex()
 
     override val pagingKey: String
         get() = loader.pagingKey
@@ -101,6 +111,72 @@ internal open class TimelineRemoteMediator(
         )
     }
 
+    /**
+     * Inserts posts newer than the cache above it, keeping every cached row (and so the
+     * reader's place), unlike REFRESH which replaces the cache with the newest page.
+     * Each source pages down from its newest post until it reaches a cached one, so
+     * sources without a "newer than" cursor (Bluesky) leave no gap either.
+     * Returns the number of posts inserted.
+     */
+    suspend fun loadNewer(pageSize: Int): Int {
+        if (!loadNewerLock.tryLock()) return 0
+        try {
+            val sources = (loader as? MixedRemoteMediator)?.sources ?: listOf(loader)
+            val newer =
+                coroutineScope {
+                    sources
+                        .map { source ->
+                            async {
+                                runCatching { newerFrom(source, pageSize) }
+                                    .getOrElse {
+                                        notifyError(it)
+                                        emptyList()
+                                    }
+                            }
+                        }.awaitAll()
+                }.flatten()
+                    .distinctBy { it.itemKey ?: "${it.accountType}_${it.statusKey}" }
+                    .sortedByDescending { it.createdAt.value.toEpochMilliseconds() }
+                    .let { if (loader.collapseReplyChains) it.collapseReplyChains() else it }
+            if (newer.isEmpty()) return 0
+            val sortIdProvider = loader as? SortIdProvider
+            val rows =
+                TimelinePagingMapper.toDb(
+                    data = newer,
+                    pagingKey = pagingKey,
+                    sortIds = newer.map { sortIdProvider?.sortId(it) },
+                )
+            database.connect {
+                onSaveCache(PagingRequest.Prepend(NEWER_KEY), rows)
+            }
+            return rows.size
+        } finally {
+            loadNewerLock.unlock()
+        }
+    }
+
+    private suspend fun newerFrom(
+        source: CacheableRemoteLoader<UiTimelineV2>,
+        pageSize: Int,
+    ): List<UiTimelineV2> {
+        val newer = mutableListOf<UiTimelineV2>()
+        var request: PagingRequest = PagingRequest.Refresh
+        // ponytail: capped so a days-stale cache can't page forever; past the cap the oldest unseen posts are skipped.
+        repeat(MAX_NEWER_PAGES) {
+            val page = source.load(pageSize, request)
+            val statusIds = TimelinePagingMapper.toDb(page.data, pagingKey).map { it.timeline.statusId }
+            val cached =
+                database
+                    .pagingTimelineDao()
+                    .getByPagingKeyAndStatusIds(pagingKey, statusIds)
+                    .mapTo(mutableSetOf()) { it.statusId }
+            newer += page.data.filterIndexed { index, _ -> statusIds[index] !in cached }
+            if (cached.isNotEmpty()) return newer
+            request = PagingRequest.Append(page.nextKey ?: return newer)
+        }
+        return newer
+    }
+
     suspend fun timeline(
         pageSize: Int,
         request: PagingRequest,
@@ -125,7 +201,7 @@ internal open class TimelineRemoteMediator(
         data: List<DbPagingTimelineWithStatus>,
     ) {
         val dataToSave =
-            if (request is PagingRequest.Prepend && loader.supportPrepend && data.isNotEmpty()) {
+            if (request is PagingRequest.Prepend && data.isNotEmpty()) {
                 val minimumSortId = database.pagingTimelineDao().getMinSortId(pagingKey)
                 if (minimumSortId != null && minimumSortId >= Long.MIN_VALUE + data.size) {
                     val firstSortId = minimumSortId - data.size

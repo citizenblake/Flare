@@ -164,6 +164,7 @@ public struct AppearanceDisplaySettingsSection: View {
     @State private var statusPresenter = KotlinPresenter(presenter: AppearancePresenter())
     #endif
     @Environment(\.timelineAppearance) private var timelineAppearance
+    @Environment(\.appSettings) private var appSettings
 
     public init() {}
 
@@ -190,6 +191,16 @@ public struct AppearanceDisplaySettingsSection: View {
                 Text("appearance_show_platform_logo", bundle: FlareAppleUILocalization.bundle)
                 Text("appearance_show_platform_logo_description", bundle: FlareAppleUILocalization.bundle)
             }
+            #if os(iOS)
+            Toggle(isOn: Binding(get: {
+                appSettings.tintPostsByNetwork
+            }, set: { newValue in
+                presenter.state.updateTintPostsByNetwork(value: newValue)
+            })) {
+                Text("Tint posts by network")
+                Text("Bluesky posts get a pale blue background, Mastodon posts a pale purple one.")
+            }
+            #endif
             Toggle(isOn: Binding(get: {
                 timelineAppearance.showEmojiReactions
             }, set: { newValue in
@@ -240,6 +251,16 @@ public struct BehaviorSettingsSection<LinkOpenDefaultsLink: View>: View {
                 Text("settings_refresh_home_timeline_on_launch", bundle: FlareAppleUILocalization.bundle)
                 Text("settings_refresh_home_timeline_on_launch_description", bundle: FlareAppleUILocalization.bundle)
             }
+            #if os(iOS)
+            Toggle(isOn: Binding(get: {
+                appSettings.homeTimelineLoadNewerNearTop
+            }, set: { newValue in
+                presenter.state.updateHomeTimelineLoadNewerNearTop(value: newValue)
+            })) {
+                Text("Load newer posts near the top")
+                Text("While you're within 5 posts of the top, Home adds newer posts above without moving your place.")
+            }
+            #else
             Picker(selection: Binding(get: {
                 appSettings.homeTimelineAutoRefreshInterval
             }, set: { newValue in
@@ -261,6 +282,7 @@ public struct BehaviorSettingsSection<LinkOpenDefaultsLink: View>: View {
                 Text("settings_home_timeline_auto_refresh_interval", bundle: FlareAppleUILocalization.bundle)
                 Text("settings_home_timeline_auto_refresh_interval_description", bundle: FlareAppleUILocalization.bundle)
             }
+            #endif
             #if os(iOS)
             Toggle(isOn: Binding(get: {
                 globalAppearance.inAppBrowser

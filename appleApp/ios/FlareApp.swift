@@ -20,6 +20,7 @@ struct FlareApp: App {
             swiftPlatformTextRenderer: PlatformTextRenderer.shared,
             swiftOnDeviceAI: FoundationModelOnDeviceAI.shared
         )
+        ICloudSettingsSync.shared.start()
     }
     var body: some Scene {
         WindowGroup {
