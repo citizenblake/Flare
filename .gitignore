@@ -37,3 +37,5 @@ GoogleService-Info.plist
 # Fork: Xcode Cloud reads the generated project and its CI scripts from the repo.
 !appleApp/Flare.xcodeproj/*
 !appleApp/ci_scripts/*.sh
+!appleApp/testflight.sh
+appleApp/Flare.xcodeproj/**/xcuserdata/
