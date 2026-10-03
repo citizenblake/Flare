@@ -4,7 +4,8 @@
 # Xcode Cloud can't build this fork: it requires access to every package repository,
 # and GitHub only grants that for repositories you own. Signing uses the Apple ID
 # signed in to Xcode (Settings > Accounts). Each upload needs a new build number,
-# so it is taken from the current time.
+# so it is taken from the current time. The release Kotlin/Native link needs a large
+# Gradle heap, and a separate DerivedData keeps an open Xcode from sharing its build database.
 set -eu
 
 cd "$(dirname "$0")"
@@ -15,8 +16,10 @@ xcodegen generate --spec project.yml
 xcodebuild archive \
     -project Flare.xcodeproj -scheme iOS -configuration Release \
     -destination "generic/platform=iOS" -archivePath "$archive" \
+    -derivedDataPath ../build-testflight/DerivedData \
     -allowProvisioningUpdates -skipPackagePluginValidation -skipMacroValidation \
-    CURRENT_PROJECT_VERSION="$build_number"
+    CURRENT_PROJECT_VERSION="$build_number" \
+    GRADLE_JVM_ARGS="-Xmx16G -Dfile.encoding=UTF-8"
 xcodebuild -exportArchive \
     -archivePath "$archive" -exportOptionsPlist ExportOptions.plist \
     -exportPath "../build-testflight/export-$build_number" -allowProvisioningUpdates

@@ -2390,7 +2390,7 @@
 		};
 		28174246320C24E416701DFA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_0F1BBE4B-8B36-4AF6-8923-7475EEFAC259" /* Textual */;
+			productRef = "TEMP_1D162A45-71E2-4AFB-BC2F-B345634BCDD8" /* Textual */;
 		};
 		447A32295768170FDE681F96 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2412,11 +2412,11 @@
 		};
 		6A019D3D4B28AC8F9C42C1C4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_F74B6A95-4D32-47A4-AEE6-2C4AB1262D8B" /* Flow */;
+			productRef = "TEMP_4FCD5F84-5436-4387-97FA-5FED9FB6FC8D" /* Flow */;
 		};
 		6DEC1B803273EC3C6D13FE23 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_BE7DE41D-CFE7-4181-9819-B8FFE1C1388E" /* Kingfisher */;
+			productRef = "TEMP_790CB018-9E69-4A2E-9C5B-EDAFA554252E" /* Kingfisher */;
 		};
 		7518CB01FC7A4B4BBCABE1A1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2430,7 +2430,7 @@
 		};
 		8A5EEC6C18D3FEA693E4877D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_BDF42E4B-5EBE-4030-933F-6C07E9A4EAE4" /* SwiftUIBackports */;
+			productRef = "TEMP_40FC7053-7E24-405F-AB1C-C2FA78A8D311" /* SwiftUIBackports */;
 		};
 		BBCE99EC61B0D3B0063F3789 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2473,7 +2473,7 @@
 			platformFilters = (
 				ios,
 			);
-			productRef = "TEMP_EE9B3CCB-5092-422F-87B8-F12D3030541A" /* VideoPlayer */;
+			productRef = "TEMP_CEF2BB2D-662F-4330-B178-88AB6CD0FA56" /* VideoPlayer */;
 		};
 /* End PBXTargetDependency section */
 
@@ -3520,30 +3520,30 @@
 			package = D60C651A6A3D73BDF7E3DC71 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAnalytics;
 		};
-		"TEMP_0F1BBE4B-8B36-4AF6-8923-7475EEFAC259" /* Textual */ = {
+		"TEMP_1D162A45-71E2-4AFB-BC2F-B345634BCDD8" /* Textual */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E5A96530C4D0F19F8D1AB3FB /* XCRemoteSwiftPackageReference "textual" */;
 			productName = Textual;
 		};
-		"TEMP_BDF42E4B-5EBE-4030-933F-6C07E9A4EAE4" /* SwiftUIBackports */ = {
+		"TEMP_40FC7053-7E24-405F-AB1C-C2FA78A8D311" /* SwiftUIBackports */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = EE3DA744FF44B8298CBDCF93 /* XCRemoteSwiftPackageReference "iOS-Backports" */;
 			productName = SwiftUIBackports;
 		};
-		"TEMP_BE7DE41D-CFE7-4181-9819-B8FFE1C1388E" /* Kingfisher */ = {
+		"TEMP_4FCD5F84-5436-4387-97FA-5FED9FB6FC8D" /* Flow */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EB15C08FA9A022F228B61252 /* XCRemoteSwiftPackageReference "SwiftUI-Flow" */;
+			productName = Flow;
+		};
+		"TEMP_790CB018-9E69-4A2E-9C5B-EDAFA554252E" /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8D6522CB881C76E99629BBBA /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
 		};
-		"TEMP_EE9B3CCB-5092-422F-87B8-F12D3030541A" /* VideoPlayer */ = {
+		"TEMP_CEF2BB2D-662F-4330-B178-88AB6CD0FA56" /* VideoPlayer */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 78FEF1C31C0D7C5E2EC2360D /* XCRemoteSwiftPackageReference "VideoPlayer" */;
 			productName = VideoPlayer;
-		};
-		"TEMP_F74B6A95-4D32-47A4-AEE6-2C4AB1262D8B" /* Flow */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = EB15C08FA9A022F228B61252 /* XCRemoteSwiftPackageReference "SwiftUI-Flow" */;
-			productName = Flow;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
