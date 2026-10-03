@@ -201,6 +201,9 @@ struct HomeTimelineScreen: View {
                                         .padding(.horizontal)
                                         .animation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedTabId)
                                     }
+                                    // The toolbar proposes too little width and clipped the tab titles.
+                                    // ponytail: sized to its tabs, so very many tabs could crowd the toolbar.
+                                    .fixedSize(horizontal: true, vertical: false)
                                 }
                                 if #available(iOS 26.0, *) {
                                     ToolbarSpacer()

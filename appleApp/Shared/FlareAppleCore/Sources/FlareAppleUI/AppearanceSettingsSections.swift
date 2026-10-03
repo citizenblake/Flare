@@ -56,6 +56,7 @@ public struct AppearanceThemeSettingsSection: View {
 
 public struct AppearanceLayoutSettingsSection<PostActionLayoutLink: View>: View {
     @State private var presenter = KotlinPresenter(presenter: SettingsPresenter())
+    @Environment(\.appSettings) private var appSettings
     #if os(iOS)
     @State private var statusPresenter = KotlinPresenter(presenter: AppearancePresenter())
     @Environment(\.globalAppearance) private var globalAppearance
@@ -97,6 +98,14 @@ public struct AppearanceLayoutSettingsSection<PostActionLayoutLink: View>: View 
             })) {
                 Text("appearance_deck_mode", bundle: FlareAppleUILocalization.bundle)
                 Text("appearance_deck_mode_description", bundle: FlareAppleUILocalization.bundle)
+            }
+            Toggle(isOn: Binding(get: {
+                appSettings.timelineMultipleColumns
+            }, set: { newValue in
+                presenter.state.updateTimelineMultipleColumns(value: newValue)
+            })) {
+                Text("Multiple columns")
+                Text("Show timelines in several columns on wide screens such as iPad")
             }
             #endif
         }

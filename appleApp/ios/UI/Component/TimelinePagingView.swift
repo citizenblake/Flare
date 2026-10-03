@@ -6,6 +6,7 @@ import FlareAppleUI
 struct UITimelinePagingView: View {
     @Environment(\.timelineAppearance.timelineDisplayMode) private var timelineDisplayMode
     @Environment(\.refresh) private var refreshAction: RefreshAction?
+    @Environment(\.appSettings) private var appSettings
     let data: PagingState<UiTimelineV2>
     let detailStatusKey: MicroBlogKey?
     let key: String
@@ -45,6 +46,10 @@ struct UITimelinePagingView: View {
         self.readingPositionSync = readingPositionSync
     }
 
+    private var effectiveColumnPolicy: TimelineColumnPolicy {
+        columnPolicy.allowingMultipleColumns(appSettings.timelineMultipleColumns)
+    }
+
     var body: some View {
         if allowGalleryMode && timelineDisplayMode == .gallery {
             UIGalleryTimelinePagingView(
@@ -60,7 +65,7 @@ struct UITimelinePagingView: View {
                     data: data,
                     detailStatusKey: detailStatusKey,
                     topContentInset: topContentInset,
-                    columnCount: columnPolicy.columnCount(for: proxy.size.width),
+                    columnCount: effectiveColumnPolicy.columnCount(for: proxy.size.width),
                     accessoryItems: accessoryItems,
                     suppressInitialRefreshIndicator: suppressInitialRefreshIndicator,
                     onIsAtTopChanged: onIsAtTopChanged,
@@ -70,7 +75,7 @@ struct UITimelinePagingView: View {
                 .id("\(accountID):\(key)")
                 .ignoresSafeArea(edges: .vertical)
             }
-            .modifier(TimelineListBackground(columnPolicy: columnPolicy))
+            .modifier(TimelineListBackground(columnPolicy: effectiveColumnPolicy))
         }
     }
 }

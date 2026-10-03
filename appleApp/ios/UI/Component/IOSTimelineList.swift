@@ -38,6 +38,7 @@ extension EnvironmentValues {
 private struct IOSTimelineList: View {
     let request: TimelineListRequest
     @Environment(\.self) private var environment
+    @Environment(\.appSettings) private var appSettings
     @State private var headers = TimelineHeaderViews()
 
     var body: some View {
@@ -46,12 +47,16 @@ private struct IOSTimelineList: View {
                 data: posts,
                 detailStatusKey: nil,
                 userData: users,
-                columnCount: TimelineColumnPolicy.adaptive.columnCount(for: geometry.size.width),
+                columnCount: columnPolicy.columnCount(for: geometry.size.width),
                 accessoryItems: headers.update(request.headers, environment: environment)
             )
             .ignoresSafeArea(edges: .vertical)
         }
-        .modifier(TimelineListBackground(columnPolicy: .adaptive))
+        .modifier(TimelineListBackground(columnPolicy: columnPolicy))
+    }
+
+    private var columnPolicy: TimelineColumnPolicy {
+        TimelineColumnPolicy.adaptive.allowingMultipleColumns(appSettings.timelineMultipleColumns)
     }
 
     private var posts: PagingState<UiTimelineV2>? {

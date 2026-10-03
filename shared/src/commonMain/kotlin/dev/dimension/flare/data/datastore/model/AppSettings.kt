@@ -16,6 +16,7 @@ public data class AppSettings(
     val homeTimelineAutoRefreshInterval: TimelineAutoRefreshInterval = TimelineAutoRefreshInterval.DISABLED,
     val homeTimelineLoadNewerNearTop: Boolean = true,
     val tintPostsByNetwork: Boolean = true,
+    val timelineMultipleColumns: Boolean = false,
 ) {
     public companion object {
         // for SwiftUI environment defaults

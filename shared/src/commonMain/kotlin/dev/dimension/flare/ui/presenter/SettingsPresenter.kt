@@ -128,6 +128,12 @@ public class SettingsPresenter : PresenterBase<SettingsPresenter.State>() {
                 }
             }
 
+            override fun updateTimelineMultipleColumns(value: Boolean) {
+                updateAppSettings {
+                    copy(timelineMultipleColumns = value)
+                }
+            }
+
             override fun updateTintPostsByNetwork(value: Boolean) {
                 updateAppSettings {
                     copy(tintPostsByNetwork = value)
@@ -223,6 +229,8 @@ public class SettingsPresenter : PresenterBase<SettingsPresenter.State>() {
         public fun updateHomeTimelineLoadNewerNearTop(value: Boolean)
 
         public fun updateTintPostsByNetwork(value: Boolean)
+
+        public fun updateTimelineMultipleColumns(value: Boolean)
 
         @WebIgnore
         public fun updateAppSettings(block: AppSettings.() -> AppSettings)
