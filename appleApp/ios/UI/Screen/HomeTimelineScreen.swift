@@ -17,7 +17,6 @@ struct HomeTimelineScreen: View {
     @Environment(\.timelineAppearance) private var timelineAppearance
     @Environment(\.openURL) private var openURL
     @State private var selectedTabId: String?
-    @Namespace private var selectedTabIndicatorNamespace
     @State private var presenter: KotlinPresenter<HomeTimelineWithTabsPresenterState>
     @State private var activeAccountPresenter = KotlinPresenter(presenter: ActiveAccountPresenter())
     @State private var loggedInPresenter = KotlinPresenter(presenter: LoggedInPresenter())
@@ -169,52 +168,54 @@ struct HomeTimelineScreen: View {
                                     }
                                 }
                             } else {
+                                // The toolbar leaves too little width for a strip of tabs on iPad, and an
+                                // oversized strip collapses the toolbar into an empty overflow menu.
                                 ToolbarItem(placement: .automatic) {
-                                    ScrollView(.horizontal) {
-                                        HStack {
-                                            ForEach(tabs, id: \.id) { item in
-                                                Button {
+                                    Menu {
+                                        ForEach(tabs, id: \.id) { item in
+                                            Toggle(isOn: Binding(get: {
+                                                tab.id == item.id
+                                            }, set: { value in
+                                                if value {
                                                     selectedTabId = item.id
-                                                } label: {
-                                                    Label {
-                                                        TimelineTabTitle(title: item.title)
-                                                    } icon: {
-                                                        TabIcon(tabItem: item)
-                                                            .frame(width: 24)
-                                                            .scaledToFit()
-                                                    }
-                                                    .labelStyle(.titleAndIcon)
                                                 }
-                                                .safeAreaInset(edge: .bottom, spacing: 3) {
-                                                    if tab.id == item.id {
-                                                        Capsule()
-                                                            .fill(Color.accentColor)
-                                                            .frame(width: 18, height: 3)
-                                                            .matchedGeometryEffect(id: "selectedTabIndicator", in: selectedTabIndicatorNamespace)
-                                                    } else {
-                                                        Capsule()
-                                                            .frame(width: 0, height: 3)
-                                                    }
+                                            })) {
+                                                Label {
+                                                    TimelineTabTitle(title: item.title)
+                                                } icon: {
+                                                    TabIcon(tabItem: item)
+                                                        .frame(width: 24)
+                                                        .scaledToFit()
                                                 }
+                                                .labelStyle(.titleAndIcon)
                                             }
                                         }
-                                        .padding(.horizontal)
-                                        .animation(.spring(response: 0.25, dampingFraction: 0.85), value: selectedTabId)
+                                    } label: {
+                                        // A Label loses its title in the toolbar; keep both visible.
+                                        HStack(spacing: 6) {
+                                            TabIcon(tabItem: tab)
+                                                .frame(width: 24)
+                                                .scaledToFit()
+                                            TimelineTabTitle(title: tab.title)
+                                                .lineLimit(1)
+                                                .fixedSize()
+                                        }
                                     }
-                                    // The toolbar proposes too little width and clipped the tab titles.
-                                    // ponytail: sized to its tabs, so very many tabs could crowd the toolbar.
-                                    .fixedSize(horizontal: true, vertical: false)
                                 }
                                 if #available(iOS 26.0, *) {
                                     ToolbarSpacer()
                                 }
                                 ToolbarItem(placement: .primaryAction) {
+                                    // A titled label so the button stays usable if the toolbar overflows.
                                     Button {
                                         toTabSetting()
                                     } label: {
-                                        Image(fontAwesome: .sliders)
+                                        Label {
+                                            Text("tab_settings_customize")
+                                        } icon: {
+                                            Image(fontAwesome: .sliders)
+                                        }
                                     }
-                                    .accessibilityLabel(Text("tab_settings_customize"))
                                 }
                             }
                             ToolbarItem(placement: .primaryAction) {
