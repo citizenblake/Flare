@@ -67,6 +67,16 @@ struct TimelineScreen: View {
             .task(id: "\(isHomeTimeline)-\(isNearTop)-\(scenePhase)-\(appSettings.homeTimelineLoadNewerNearTop)") {
                 try? await loadNewerWhileNearTop()
             }
+            .task(id: scenePhase) {
+                await loadNewerOnActivation()
+            }
+    }
+
+    // Coming back to the app fetches what was posted meanwhile, wherever the reader is.
+    private func loadNewerOnActivation() async {
+        guard isHomeTimeline, appSettings.homeTimelineLoadNewerNearTop, scenePhase == .active, !isNearTop,
+              case .success = onEnum(of: presenter.state.listState) else { return }
+        _ = try? await presenter.state.loadNewerSuspend(refreshIfUncached: false)
     }
 
     // Home inserts newer posts above the loaded ones so the reader keeps their place;

@@ -44,6 +44,7 @@ internal open class TimelineRemoteMediator(
     ),
     RemoteLoader<DbPagingTimelineWithStatus> {
     private var suppressInitialPrepend = false
+    private var loadNewerOnFirstPrepend = false
     private val loadNewerLock = Mutex()
 
     override val pagingKey: String
@@ -67,11 +68,10 @@ internal open class TimelineRemoteMediator(
 
         val shouldRefresh = refreshOnInitialize()
         suppressInitialPrepend = loader.supportPrepend && !shouldRefresh
-        return if (!shouldRefresh || loader.supportPrepend) {
-            InitializeAction.SKIP_INITIAL_REFRESH
-        } else {
-            InitializeAction.LAUNCH_INITIAL_REFRESH
-        }
+        // A launch refresh would replace the cache and lose the reader's place. Keep the
+        // cache and fetch what is newer when Paging first asks for posts above it.
+        loadNewerOnFirstPrepend = shouldRefresh && !loader.supportPrepend
+        return InitializeAction.SKIP_INITIAL_REFRESH
     }
 
     override suspend fun doLoad(
@@ -84,6 +84,12 @@ internal open class TimelineRemoteMediator(
         }
         if (loadType == LoadType.REFRESH) {
             suppressInitialPrepend = false
+            loadNewerOnFirstPrepend = false
+        }
+        if (loadType == LoadType.PREPEND && loadNewerOnFirstPrepend) {
+            loadNewerOnFirstPrepend = false
+            loadNewer(state.config.pageSize)
+            return MediatorResult.Success(endOfPaginationReached = true)
         }
         return super.doLoad(loadType, state)
     }

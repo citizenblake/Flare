@@ -143,6 +143,20 @@ class TimelineRemoteMediatorAppendTest : RobolectricTest() {
             assertEquals((5..12).toList(), postOrder(mediator.pagingKey))
         }
 
+    @Test
+    fun launchWithACacheKeepsItAndLoadsNewerPostsAboveInsteadOfRefreshing() =
+        runTest {
+            var response = PagingResult<UiTimelineV2>(listOf(post(10), post(11)), nextKey = "old")
+            mediator("featured") { response }.loadPage(LoadType.REFRESH)
+
+            response = PagingResult(listOf(post(8), post(9), post(10)), nextKey = "p2")
+            val relaunched = mediator("featured") { response }
+            assertEquals(RemoteMediator.InitializeAction.SKIP_INITIAL_REFRESH, relaunched.initialize())
+            relaunched.loadPage(LoadType.PREPEND)
+
+            assertEquals(listOf(8, 9, 10, 11), postOrder(relaunched.pagingKey))
+        }
+
     private fun mediator(
         pagingKey: String,
         response: (PagingRequest) -> PagingResult<UiTimelineV2>,
