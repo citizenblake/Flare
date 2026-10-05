@@ -237,6 +237,9 @@ internal class TimelineDbPageLoader(
             limit = limit,
         )
 
+    override suspend fun offsetOf(item: TimelinePageItem): Int =
+        database.pagingTimelineDao().countTimelineRowsBefore(pagingKey, item.sortId)
+
     override fun observeInvalidations(invalidate: () -> Unit): PageInvalidationSubscription {
         val ready = CompletableDeferred<Unit>()
         val job =

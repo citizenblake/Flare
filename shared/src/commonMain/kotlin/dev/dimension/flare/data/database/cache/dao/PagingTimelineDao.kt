@@ -532,6 +532,17 @@ internal interface PagingTimelineDao {
     @Query("SELECT EXISTS(SELECT 1 FROM DbPagingTimeline WHERE pagingKey = :pagingKey)")
     suspend fun anyPaging(pagingKey: String): Boolean
 
+    // Mirrors the page query's join and order, so the count is a row's offset in that page list.
+    @Query(
+        "SELECT COUNT(*) FROM DbPagingTimeline " +
+            "INNER JOIN DbStatus ON DbStatus.id = DbPagingTimeline.statusId " +
+            "WHERE DbPagingTimeline.pagingKey = :pagingKey AND DbPagingTimeline.sortId < :sortId",
+    )
+    suspend fun countTimelineRowsBefore(
+        pagingKey: String,
+        sortId: Long,
+    ): Int
+
     @Query("SELECT * FROM DbPagingKey WHERE pagingKey = :pagingKey LIMIT 1")
     suspend fun getPagingKey(pagingKey: String): DbPagingKey?
 

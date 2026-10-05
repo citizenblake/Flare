@@ -13,6 +13,37 @@ import kotlin.test.assertIs
 
 class OffsetFromStartPagingSourceTest {
     @Test
+    fun refreshGrowsByRowsInsertedAboveTheAnchorSoItStaysLoaded() =
+        runTest {
+            val rows = (100 until 150).toMutableList()
+            val pagingSource =
+                OffsetFromStartPagingSource(
+                    object : OffsetFromStartPageLoader<Int> {
+                        override suspend fun load(
+                            offset: Int,
+                            limit: Int,
+                        ): List<Int> = rows.drop(offset).take(limit)
+
+                        override suspend fun offsetOf(item: Int): Int = rows.indexOf(item)
+                    },
+                )
+            // The reader is on row 102 (position 2) when 100 newer rows arrive above it.
+            rows.addAll(0, (0 until 100).toList())
+
+            val result =
+                pagingSource.doLoad(
+                    PagingSource.LoadParams.Refresh(
+                        key = OffsetFromStartPagingKey.Refresh(limit = 23, anchor = 102, anchorPosition = 2),
+                        loadSize = 20,
+                        placeholdersEnabled = false,
+                    ),
+                )
+
+            val page = assertIs<PagingSource.LoadResult.Page<OffsetFromStartPagingKey, Int>>(result)
+            assertEquals((0 until 123).toList(), page.data)
+        }
+
+    @Test
     fun loadWaitsForInvalidationInitialEmissionBeforeReading() =
         runTest {
             val invalidationJob = Job()
@@ -91,7 +122,7 @@ class OffsetFromStartPagingSourceTest {
                     },
             )
 
-        assertEquals(OffsetFromStartPagingKey.Refresh(limit = 47), refreshKey)
+        assertEquals(OffsetFromStartPagingKey.Refresh(limit = 47, anchor = 25, anchorPosition = 25), refreshKey)
     }
 
     @Test
