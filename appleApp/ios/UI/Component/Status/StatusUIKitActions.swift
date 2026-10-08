@@ -194,6 +194,27 @@ final class StatusActionsUIView: UIView, ManualLayoutMeasurable, TimelineHeightP
         CGSize(width: size.width, height: timelineHeight(for: size.width) ?? 0)
     }
 
+    // Controls accept touches in their grown hit frames, which reach above and below this
+    // row. Where two hit frames overlap, the control actually under the finger wins,
+    // then the nearest one.
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        bounds.contains(point) || hitControl(at: point) != nil
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard isUserInteractionEnabled, !isHidden, alpha > 0.01 else { return nil }
+        if let control = hitControl(at: point) { return control }
+        return super.hitTest(point, with: event)
+    }
+
+    private func hitControl(at point: CGPoint) -> ActionItemControl? {
+        let controls = managedChildren.compactMap { $0 as? ActionItemControl }.filter { $0.isEnabled && !$0.isHidden }
+        if let direct = controls.first(where: { $0.frame.contains(point) }) { return direct }
+        return controls
+            .filter { $0.hitFrame.contains(point) }
+            .min { abs($0.frame.midX - point.x) < abs($1.frame.midX - point.x) }
+    }
+
     func timelineHeight(for width: CGFloat) -> CGFloat? {
         guard !managedChildren.isEmpty else { return .zero }
         var maxH: CGFloat = 0
@@ -532,7 +553,25 @@ private final class ActionItemControl: UIButton, ManualLayoutMeasurable, Timelin
     private var currentSpacing: CGFloat = 0
     private var horizontalInset: CGFloat = 0
     private var verticalInset: CGFloat = 0
+    private var usesExpandedHitArea = false
     private var onTap: (() -> Void)?
+
+    /// The smallest comfortable touch target (Human Interface Guidelines).
+    static let minimumHitSize: CGFloat = 44
+
+    /// The area that counts as a touch on this control: its frame grown to the minimum
+    /// hit size, so a small icon doesn't need a precise tap.
+    var hitFrame: CGRect {
+        guard usesExpandedHitArea else { return frame }
+        return frame.insetBy(
+            dx: min((frame.width - Self.minimumHitSize) / 2, 0),
+            dy: min((frame.height - Self.minimumHitSize) / 2, 0)
+        )
+    }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        hitFrame.offsetBy(dx: -frame.minX, dy: -frame.minY).contains(point)
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -605,7 +644,8 @@ private final class ActionItemControl: UIButton, ManualLayoutMeasurable, Timelin
         self.tintColor = tintColor
         self.currentSpacing = title != nil || minimumTextWidth != nil ? 2 : 0
         self.horizontalInset = usesExpandedHitArea ? 4 : 0
-        self.verticalInset = usesExpandedHitArea ? 4 : 0
+        self.verticalInset = usesExpandedHitArea ? 10 : 0
+        self.usesExpandedHitArea = usesExpandedHitArea
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityValue = accessibilityValue
         menu = nil
@@ -636,6 +676,7 @@ private final class ActionItemControl: UIButton, ManualLayoutMeasurable, Timelin
         minimumIconOnlySize = nil
         horizontalInset = 0
         verticalInset = 0
+        usesExpandedHitArea = false
         accessibilityLabel = nil
         accessibilityValue = nil
     }
