@@ -62,7 +62,7 @@ final class StatusActionsUIView: UIView, ManualLayoutMeasurable, TimelineHeightP
         self.showNumbers = showNumbers
         self.fontSize = UIFontMetrics(forTextStyle: .footnote).scaledValue(for: 13)
         // One size everywhere: the focused post's actions used to be larger than its replies'.
-        self.textStyle = .footnote
+        self.textStyle = .subheadline
         rebuild()
     }
 
@@ -70,8 +70,9 @@ final class StatusActionsUIView: UIView, ManualLayoutMeasurable, TimelineHeightP
         .preferredFont(forTextStyle: textStyle)
     }
 
+    // Icons a step larger than their counts, so they read as controls rather than captions.
     private var actionIconSize: CGFloat {
-        actionFont.pointSize
+        actionFont.pointSize * 1.3
     }
 
     private func rebuild() {
@@ -643,9 +644,9 @@ private final class ActionItemControl: UIButton, ManualLayoutMeasurable, Timelin
         self.iconSize = iconSize
         self.onTap = onTap
         self.tintColor = tintColor
-        self.currentSpacing = title != nil || minimumTextWidth != nil ? 2 : 0
+        self.currentSpacing = title != nil || minimumTextWidth != nil ? 5 : 0
         self.horizontalInset = usesExpandedHitArea ? 4 : 0
-        self.verticalInset = usesExpandedHitArea ? 10 : 0
+        self.verticalInset = usesExpandedHitArea ? 8 : 0
         self.usesExpandedHitArea = usesExpandedHitArea
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityValue = accessibilityValue
