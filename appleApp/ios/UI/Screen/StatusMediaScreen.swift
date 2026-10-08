@@ -75,7 +75,7 @@ struct StatusMediaScreen: View {
     private var statusUserHandle: String {
         if case .success(let success) = onEnum(of: presenter.state.status),
            let content = success.data.timelineContentPost {
-            return content.user?.handle.canonical ?? "unknown"
+            return content.user?.handle.display ?? "unknown"
         }
         return "unknown"
     }

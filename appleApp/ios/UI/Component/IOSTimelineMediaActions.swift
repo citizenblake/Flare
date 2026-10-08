@@ -146,7 +146,7 @@ enum IOSTimelineMediaActions {
                 url: image.url,
                 customHeaders: image.customHeaders,
                 statusKey: post.statusKey.description(),
-                userHandle: post.user?.handle.canonical,
+                userHandle: post.user?.handle.display,
                 onPreparingNeeded: {
                     MediaSaver.showPreparingMedia()
                 }
@@ -176,7 +176,7 @@ enum IOSTimelineMediaActions {
         let mediaIndex = medias.firstIndex { $0.url == media.url } ?? 0
         return MediaFileNamePolicy.shared.statusMediaFileName(
             statusKey: post.statusKey.description(),
-            userHandle: post.user?.handle.canonical ?? "unknown",
+            userHandle: post.user?.handle.display ?? "unknown",
             media: media,
             mediaIndex: Int32(mediaIndex)
         )

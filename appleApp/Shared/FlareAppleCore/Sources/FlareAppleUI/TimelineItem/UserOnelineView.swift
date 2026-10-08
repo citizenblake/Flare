@@ -26,7 +26,7 @@ public struct UserOnelineView<TrailingContent: View>: View {
                 AvatarView(data: data.avatar?.url, customHeader: data.avatar?.customHeaders)
                     .frame(width: 20, height: 20)
                     .accessibilityLabel(
-                        Text(verbatim: openProfileAccessibilityLabel(handle: data.handle.canonical))
+                        Text(verbatim: openProfileAccessibilityLabel(handle: data.handle.display))
                     )
                     .onTapGesture {
                         onClicked?()
@@ -34,7 +34,7 @@ public struct UserOnelineView<TrailingContent: View>: View {
             }
             HStack(spacing: 4) {
                 RichText(text: data.name)
-                Text(data.handle.canonical)
+                Text(data.handle.display)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

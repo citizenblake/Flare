@@ -22,6 +22,8 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 
 private const val NEWER_KEY = "newer"
@@ -46,6 +48,9 @@ internal open class TimelineRemoteMediator(
     private var suppressInitialPrepend = false
     private var loadNewerOnFirstPrepend = false
     private val loadNewerLock = Mutex()
+
+    /** Running total of posts [loadNewer] has inserted above the cache. */
+    val newerLoaded = MutableStateFlow(0)
 
     override val pagingKey: String
         get() = loader.pagingKey
@@ -155,6 +160,7 @@ internal open class TimelineRemoteMediator(
             database.connect {
                 onSaveCache(PagingRequest.Prepend(NEWER_KEY), rows)
             }
+            newerLoaded.update { it + rows.size }
             return rows.size
         } finally {
             loadNewerLock.unlock()

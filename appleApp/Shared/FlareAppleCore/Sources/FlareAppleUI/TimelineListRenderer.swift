@@ -32,8 +32,10 @@ public struct TimelineListHeader {
         self.isPinned = isPinned
     }
 
+    // Not pinned: the pinned copy was drawn over the in-list title, slightly offset, so
+    // every section title showed twice.
     public static func title(_ key: String) -> Self {
-        Self(id: key, isPinned: true) {
+        Self(id: key, isPinned: false) {
             Text(FlareAppleUILocalization.string(key))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)

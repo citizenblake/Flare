@@ -209,7 +209,7 @@ public struct SearchScreen: View {
                                 }
                             })) {
                                 Label {
-                                    Text(account.handle.canonical)
+                                    Text(account.handle.display)
                                 } icon: {
                                     AvatarView(data: account.avatar?.url, customHeader: account.avatar?.customHeaders)
                                 }
@@ -220,7 +220,7 @@ public struct SearchScreen: View {
                             HStack {
                                 AvatarView(data: selectedAccount.avatar?.url, customHeader: selectedAccount.avatar?.customHeaders)
                                     .frame(width: 24, height: 24)
-                                Text(selectedAccount.handle.canonical)
+                                Text(selectedAccount.handle.display)
                                 Image(fontAwesome: .chevronDown)
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
@@ -270,7 +270,7 @@ public struct SearchScreen: View {
                         .frame(width: 26, height: 26)
                     }
                     .buttonStyle(.plain)
-                    .help(toolbarAccount.handle.canonical)
+                    .help(toolbarAccount.handle.display)
                     .popover(isPresented: $isMacAccountPopoverPresented, arrowEdge: .top) {
                         MacSearchAccountPopover(
                             accounts: accounts,
@@ -340,7 +340,7 @@ private struct MacSearchAccountRow: View {
                 AvatarView(data: account.avatar?.url, customHeader: account.avatar?.customHeaders)
                     .frame(width: 28, height: 28)
 
-                Text(account.handle.canonical)
+                Text(account.handle.display)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

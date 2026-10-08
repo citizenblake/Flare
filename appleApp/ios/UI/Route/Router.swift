@@ -7,6 +7,8 @@ import FlareAppleUI
 
 struct Router<Root: View>: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.appSettings) private var appSettings
     @ViewBuilder let root: (@escaping (Route) -> Void) -> Root
     @State private var backStack: [Route] = []
     @State private var sheet: Route? = nil
@@ -28,18 +30,59 @@ struct Router<Root: View>: View {
         self.deepLinkHandler = handler
     }
     
-    var body: some View {
-        NavigationStack(path: $backStack) {
-            root({ route in
-                navigate(route: route)
-            })
-            .navigationDestination(for: Route.self) { route in
-                route.view(
-                    onNavigate: { route in navigate(route: route) },
-                    goBack: { backStack.removeLast() }
-                )
+    private static var primaryColumnWidth: CGFloat { 400 }
+
+    private var usesSideBySide: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad && horizontalSizeClass == .regular && appSettings.sideBySideOnWideScreens
+    }
+
+    // On a wide screen the list stays on the left and whatever it opens (a post, a profile,
+    // a settings page) shows on the right, instead of replacing the list.
+    @ViewBuilder
+    private var navigation: some View {
+        if usesSideBySide {
+            HStack(spacing: 0) {
+                NavigationStack {
+                    root({ route in
+                        navigate(route: route)
+                    })
+                }
+                // The narrow column lays out like a phone.
+                .environment(\.horizontalSizeClass, .compact)
+                .frame(width: Self.primaryColumnWidth)
+                Divider()
+                    .ignoresSafeArea()
+                NavigationStack(path: $backStack) {
+                    ContentUnavailableView(
+                        "Nothing open",
+                        systemImage: "rectangle.righthalf.inset.filled",
+                        description: Text("Posts, profiles and pages you open appear here.")
+                    )
+                    .navigationDestination(for: Route.self) { route in
+                        route.view(
+                            onNavigate: { route in navigate(route: route) },
+                            goBack: { backStack.removeLast() }
+                        )
+                    }
+                }
+            }
+        } else {
+            NavigationStack(path: $backStack) {
+                root({ route in
+                    navigate(route: route)
+                })
+                .navigationDestination(for: Route.self) { route in
+                    route.view(
+                        onNavigate: { route in navigate(route: route) },
+                        goBack: { backStack.removeLast() }
+                    )
+                }
             }
         }
+    }
+
+    var body: some View {
+        navigation
         .environment(\.timelineMediaActionHandler, IOSTimelineMediaActions.handler)
         .sheet(item: $sheet) { route in
             if #available(iOS 18.0, *) {

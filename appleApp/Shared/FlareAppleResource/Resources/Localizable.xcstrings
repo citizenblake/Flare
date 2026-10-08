@@ -45937,7 +45937,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You reach the end"
+            "value" : "You've reached the end"
           }
         },
         "fi" : {
@@ -156822,7 +156822,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Post detail"
+            "value" : "Post"
           }
         },
         "fi" : {

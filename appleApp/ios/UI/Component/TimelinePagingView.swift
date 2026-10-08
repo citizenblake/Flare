@@ -17,7 +17,7 @@ struct UITimelinePagingView: View {
     let suppressInitialRefreshIndicator: Bool
     let columnPolicy: TimelineColumnPolicy
     let onIsAtTopChanged: (Bool) -> Void
-    let onIsNearTopChanged: (Bool) -> Void
+    let onFirstVisibleIndexChanged: (Int) -> Void
     let readingPositionSync: ReadingPositionSync?
 
     init(
@@ -30,7 +30,7 @@ struct UITimelinePagingView: View {
         suppressInitialRefreshIndicator: Bool = false,
         columnPolicy: TimelineColumnPolicy = .adaptive,
         onIsAtTopChanged: @escaping (Bool) -> Void = { _ in },
-        onIsNearTopChanged: @escaping (Bool) -> Void = { _ in },
+        onFirstVisibleIndexChanged: @escaping (Int) -> Void = { _ in },
         readingPositionSync: ReadingPositionSync? = nil
     ) {
         self.data = data
@@ -42,7 +42,7 @@ struct UITimelinePagingView: View {
         self.suppressInitialRefreshIndicator = suppressInitialRefreshIndicator
         self.columnPolicy = columnPolicy
         self.onIsAtTopChanged = onIsAtTopChanged
-        self.onIsNearTopChanged = onIsNearTopChanged
+        self.onFirstVisibleIndexChanged = onFirstVisibleIndexChanged
         self.readingPositionSync = readingPositionSync
     }
 
@@ -69,7 +69,7 @@ struct UITimelinePagingView: View {
                     accessoryItems: accessoryItems,
                     suppressInitialRefreshIndicator: suppressInitialRefreshIndicator,
                     onIsAtTopChanged: onIsAtTopChanged,
-                    onIsNearTopChanged: onIsNearTopChanged,
+                    onFirstVisibleIndexChanged: onFirstVisibleIndexChanged,
                     readingPositionSync: readingPositionSync
                 )
                 .id("\(accountID):\(key)")

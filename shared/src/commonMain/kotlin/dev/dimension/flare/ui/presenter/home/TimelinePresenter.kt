@@ -263,8 +263,12 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                 }
             }
         val listState = items.toPagingState(contextLoadStates, retry)
+        val newerLoadedCount by remember {
+            timelineMediator.flatMapLatest { it?.newerLoaded ?: flowOf(0) }
+        }.collectAsState(0)
         return object : TimelineState {
             override val listState = listState
+            override val newerLoadedCount = newerLoadedCount
 
             override fun refreshAsync() {
                 scope.launch {
@@ -301,6 +305,9 @@ internal suspend fun shouldRefreshTimelineOnInitialize(
 @Immutable
 public interface TimelineState {
     public val listState: PagingState<UiTimelineV2>
+
+    /** Running total of newer posts inserted above the reader since this timeline opened. */
+    public val newerLoadedCount: Int get() = 0
 
     public fun refreshAsync()
 

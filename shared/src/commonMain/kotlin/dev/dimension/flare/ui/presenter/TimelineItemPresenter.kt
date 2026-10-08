@@ -28,6 +28,8 @@ public class TimelineItemPresenter(
         public suspend fun loadNewerSuspend(refreshIfUncached: Boolean): Int = 0
 
         public val isRefreshing: Boolean
+
+        public val newerLoadedCount: Int get() = 0
     }
 
     private val timelinePresenter by lazy {
@@ -41,6 +43,7 @@ public class TimelineItemPresenter(
         return object : State {
             override val listState = state.listState
             override val isRefreshing = listState.isRefreshing
+            override val newerLoadedCount = state.newerLoadedCount
 
             override fun refreshSync() {
                 scope.launch {

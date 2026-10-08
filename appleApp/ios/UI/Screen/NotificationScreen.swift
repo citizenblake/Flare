@@ -14,17 +14,21 @@ struct NotificationScreen: View {
     @State private var filterSegmentsHeight: CGFloat = 0
     @State private var isAtTop = true
     @State private var isTabRefreshInFlight = false
+    // One merged, time-ordered list across every account, rather than one account at a time.
+    @AppStorage("notifications.allAccounts") private var showsAllAccounts = true
 
     private var notificationItems: [NotificationAccountItem] {
         presenter.state.notifications
     }
 
     private var supportedFilters: [NotificationFilter] {
+        // The merged list only has the "all" filter: not every network can filter.
+        if showsAllAccounts { return [] }
         switch onEnum(of: presenter.state.supportedNotificationFilters) {
         case .success(let data):
-            data.data.cast(NotificationFilter.self)
+            return data.data.cast(NotificationFilter.self)
         case .loading, .error:
-            []
+            return []
         }
     }
 
@@ -56,7 +60,7 @@ struct NotificationScreen: View {
     private var timelineKey: String {
         [
             "notifications",
-            presenterSelectedAccountStableKey ?? "none",
+            showsAllAccounts ? "all-accounts" : presenterSelectedAccountStableKey ?? "none",
             presenterSelectedFilterStableKey ?? "none",
         ].joined(separator: "::")
     }
@@ -115,7 +119,8 @@ struct NotificationScreen: View {
                     ToolbarItem {
                         NotificationAccountsMenu(
                             items: notificationItems,
-                            selectedStableKey: $selectedAccountStableKey
+                            selectedStableKey: $selectedAccountStableKey,
+                            showsAllAccounts: $showsAllAccounts
                         )
                     }
                     if horizontalSizeClass == .regular && !isSyncingAccountSelection {
@@ -130,8 +135,12 @@ struct NotificationScreen: View {
                 }
             }
             .onAppear {
+                presenter.state.setAllAccounts(value: showsAllAccounts)
                 syncSelectedAccountFromPresenter()
                 syncSelectedFilterFromPresenter()
+            }
+            .onChange(of: showsAllAccounts) { _, value in
+                presenter.state.setAllAccounts(value: value)
             }
             .onChange(of: presenterSelectedAccountStableKey) { _ in
                 syncSelectedAccountFromPresenter()
@@ -238,6 +247,7 @@ struct NotificationFilterSegments: View {
 struct NotificationAccountsMenu: View {
     let items: [NotificationAccountItem]
     @Binding var selectedStableKey: String?
+    @Binding var showsAllAccounts: Bool
 
     private var resolvedSelectedStableKey: String? {
         if let selectedStableKey,
@@ -271,17 +281,32 @@ struct NotificationAccountsMenu: View {
     var body: some View {
         if items.count > 1 {
             Menu {
+                Toggle(isOn: Binding(
+                    get: { showsAllAccounts },
+                    set: { isSelected in
+                        if isSelected {
+                            showsAllAccounts = true
+                        }
+                    }
+                )) {
+                    Label("All accounts", systemImage: "tray.2")
+                    if let unreadText = unreadText(for: totalUnreadCount) {
+                        Text(unreadText)
+                    }
+                }
+                Divider()
                 ForEach(items, id: \.stableKey) { item in
                     Toggle(isOn: Binding(
-                        get: { resolvedSelectedStableKey == item.stableKey },
+                        get: { !showsAllAccounts && resolvedSelectedStableKey == item.stableKey },
                         set: { isSelected in
                             if isSelected {
                                 selectedStableKey = item.stableKey
+                                showsAllAccounts = false
                             }
                         }
                     )) {
                         Label {
-                            Text(item.profile.handle.canonical)
+                            Text(item.profile.handle.display)
                         } icon: {
                             AvatarView(data: item.profile.avatar?.url, customHeader: item.profile.avatar?.customHeaders)
                         }
@@ -294,10 +319,15 @@ struct NotificationAccountsMenu: View {
                 if let selectedItem {
                     let selectedAccount = selectedItem.profile
                     HStack(spacing: 8) {
-                        AvatarView(data: selectedAccount.avatar?.url, customHeader: selectedAccount.avatar?.customHeaders)
-                            .frame(width: 24, height: 24)
+                        if showsAllAccounts {
+                            Image(systemName: "tray.2")
+                                .frame(width: 24, height: 24)
+                        } else {
+                            AvatarView(data: selectedAccount.avatar?.url, customHeader: selectedAccount.avatar?.customHeaders)
+                                .frame(width: 24, height: 24)
+                        }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(selectedAccount.handle.canonical)
+                            Text(showsAllAccounts ? "All accounts" : selectedAccount.handle.display)
                                 .lineLimit(1)
                             if let unreadText = unreadText(for: totalUnreadCount) {
                                 Text(unreadText)

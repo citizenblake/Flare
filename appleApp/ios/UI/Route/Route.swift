@@ -76,7 +76,7 @@ enum Route: Hashable, Identifiable {
                 toHome: { goBack() }
             )
         case .statusDetail(let accountType, let statusKey):
-            StatusDetailScreen(accountType: accountType, statusKey: statusKey)
+            StatusDetailScreen(accountType: accountType, statusKey: statusKey, onReply: { onNavigate(.composeReply(accountType, statusKey)) })
         case .galleryDetail(let accountType, let statusKey):
             GalleryDetailScreen(accountType: accountType, statusKey: statusKey, onNavigate: onNavigate)
         case .galleryComments(let accountType, let statusKey):
@@ -91,6 +91,7 @@ enum Route: Hashable, Identifiable {
             )
         case .settings:
             SettingsScreen()
+                .readableListWidth()
         case .notification:
             NotificationScreen()
         case .discover:
@@ -128,18 +129,24 @@ enum Route: Hashable, Identifiable {
             )
         case .appearanceTheme:
             AppearanceThemeScreen()
+                .readableListWidth()
         case .appearanceLayout:
             AppearanceLayoutScreen()
+                .readableListWidth()
         case .postActionLayout:
             PostActionLayoutScreen()
         case .appearanceDisplay:
             AppearanceDisplayScreen()
+                .readableListWidth()
         case .appearanceMedia:
             AppearanceMediaScreen()
+                .readableListWidth()
         case .behavior:
             BehaviorSettingsScreen()
+                .readableListWidth()
         case .linkOpenDefaults:
             LinkOpenDefaultsSettingsScreen()
+                .readableListWidth()
         case .appIconSettings:
             AppIconSettingsScreen()
         case .about:

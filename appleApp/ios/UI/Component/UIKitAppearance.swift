@@ -181,11 +181,12 @@ struct GalleryUIKitAppearance: Equatable {
 }
 
 extension TimelineUIKitAppearance {
+    // Dark tints stay close to the system background so secondary text keeps its contrast.
     private static let blueskyTint = UIColor { $0.userInterfaceStyle == .dark
-        ? UIColor(red: 0.10, green: 0.15, blue: 0.24, alpha: 1)
+        ? UIColor(red: 0.07, green: 0.10, blue: 0.17, alpha: 1)
         : UIColor(red: 0.91, green: 0.95, blue: 1.00, alpha: 1) }
     private static let mastodonTint = UIColor { $0.userInterfaceStyle == .dark
-        ? UIColor(red: 0.17, green: 0.12, blue: 0.25, alpha: 1)
+        ? UIColor(red: 0.12, green: 0.08, blue: 0.18, alpha: 1)
         : UIColor(red: 0.95, green: 0.92, blue: 1.00, alpha: 1) }
 
     /// Background tint for a post's network, or nil to keep the default background.

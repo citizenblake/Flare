@@ -58,9 +58,9 @@ internal class AppleFormatter(
                 formatter.timeStyle = NSDateFormatterShortStyle
             }
 
+            // Within the week a weekday reads faster than a numeric date ("Mon 7:16 PM").
             daysDiff < 7 -> {
-                formatter.dateStyle = NSDateFormatterShortStyle
-                formatter.timeStyle = NSDateFormatterShortStyle
+                formatter.setLocalizedDateFormatFromTemplate("EEEjmm")
             }
 
             else -> {

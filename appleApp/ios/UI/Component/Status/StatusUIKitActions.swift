@@ -61,7 +61,8 @@ final class StatusActionsUIView: UIView, ManualLayoutMeasurable, TimelineHeightP
         self.postActionFixedWidth = postActionFixedWidth
         self.showNumbers = showNumbers
         self.fontSize = UIFontMetrics(forTextStyle: .footnote).scaledValue(for: 13)
-        self.textStyle = isDetail ? .body : .footnote
+        // One size everywhere: the focused post's actions used to be larger than its replies'.
+        self.textStyle = .footnote
         rebuild()
     }
 

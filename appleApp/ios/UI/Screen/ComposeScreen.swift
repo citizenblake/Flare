@@ -75,7 +75,12 @@ struct ComposeScreen: View {
                         .focused($cwKeyboardFocused)
                         Divider()
                     }
-                    
+
+                    // A reply reads top-down: the post being answered, then the answer.
+                    if isReply {
+                        referencePreview
+                    }
+
                     TextEditor(text: $viewModel.text)
                         .font(.body)
                         .scrollContentBackground(.hidden)
@@ -89,7 +94,7 @@ struct ComposeScreen: View {
                         .focused($keyboardFocused)
                         .overlay(alignment: .topLeading) {
                             if viewModel.text.isEmpty {
-                                Text("compose_placeholder")
+                                placeholder
                                     .foregroundStyle(.tertiary)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 8)
@@ -122,10 +127,8 @@ struct ComposeScreen: View {
                             maxChoices: maxPollOptions
                         )
                     }
-                    if let replyState = presenter.state.replyState,
-                       case .success(let reply) = onEnum(of: replyState),
-                       let content = reply.data.timelineContentPost {
-                        ComposeReferenceStatusPreview(data: content)
+                    if !isReply {
+                        referencePreview
                     }
                 }
                 .padding(.horizontal)
@@ -242,8 +245,35 @@ struct ComposeScreen: View {
                         Image(systemName: "paperplane.fill")
                     }
                 }
+                .backport.glassProminentButtonStyle()
                 .disabled(!presenter.state.canSend || mediaViewModel.items.contains { !$0.isReady })
             }
+        }
+    }
+
+    private var referencePost: UiTimelineV2.Post? {
+        guard let replyState = presenter.state.replyState,
+              case .success(let reply) = onEnum(of: replyState) else { return nil }
+        return reply.data.timelineContentPost
+    }
+
+    private var isReply: Bool {
+        if case .reply = onEnum(of: presenter.state.composeStatus) { return true }
+        return false
+    }
+
+    @ViewBuilder
+    private var referencePreview: some View {
+        if let referencePost {
+            ComposeReferenceStatusPreview(data: referencePost)
+        }
+    }
+
+    private var placeholder: Text {
+        if isReply, let handle = referencePost?.user?.handle.display {
+            Text("Reply to \(handle)")
+        } else {
+            Text("compose_placeholder")
         }
     }
 
@@ -448,7 +478,7 @@ struct ComposeScreen: View {
     private func accountPickerRow(user: UiProfile) -> some View {
         Label {
             VStack(alignment: .leading, spacing: 2) {
-                Text(user.handle.canonical)
+                Text(user.handle.display)
                 Text(user.key.host)
                     .font(.caption)
                     .foregroundStyle(.secondary)

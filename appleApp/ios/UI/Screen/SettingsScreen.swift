@@ -145,9 +145,65 @@ struct SettingsScreen: View {
     }
 }
 
+/// The timeline reading options this fork adds, in one place.
+struct TimelineReadingSettingsSection: View {
+    @State private var presenter = KotlinPresenter(presenter: SettingsPresenter())
+    @Environment(\.appSettings) private var appSettings
+
+    var body: some View {
+        Section {
+            Toggle(isOn: Binding(get: {
+                appSettings.homeTimelineLoadNewerNearTop
+            }, set: { newValue in
+                presenter.state.updateHomeTimelineLoadNewerNearTop(value: newValue)
+            })) {
+                Text("Load newer posts near the top")
+                Text("While you're within 5 posts of the top, Home adds newer posts above without moving your place.")
+            }
+            Toggle(isOn: Binding(get: {
+                appSettings.tintPostsByNetwork
+            }, set: { newValue in
+                presenter.state.updateTintPostsByNetwork(value: newValue)
+            })) {
+                Text("Tint posts by network")
+                Text("Bluesky posts get a pale blue background, Mastodon posts a pale purple one.")
+            }
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                Toggle(isOn: Binding(get: {
+                    appSettings.sideBySideOnWideScreens
+                }, set: { newValue in
+                    presenter.state.updateSideBySideOnWideScreens(value: newValue)
+                })) {
+                    Text("Side by side")
+                    Text("Keep the list on the left and open posts and profiles on the right.")
+                }
+                Toggle(isOn: Binding(get: {
+                    appSettings.timelineMultipleColumns
+                }, set: { newValue in
+                    presenter.state.updateTimelineMultipleColumns(value: newValue)
+                })) {
+                    Text("Multiple columns")
+                    Text("Show timelines in several columns when there is room.")
+                }
+            }
+            NavigationLink(value: Route.tabSettings) {
+                Label {
+                    Text("Home tabs and merge order")
+                    Text("Choose which timelines Home shows and how the Mixed tab orders them.")
+                } icon: {
+                    EmptyView()
+                }
+            }
+        } header: {
+            Text("Timeline")
+        }
+    }
+}
+
 struct BehaviorSettingsScreen: View {
     var body: some View {
         List {
+            TimelineReadingSettingsSection()
             BehaviorSettingsSection {
                 NavigationLink(value: Route.linkOpenDefaults) {
                     Label {

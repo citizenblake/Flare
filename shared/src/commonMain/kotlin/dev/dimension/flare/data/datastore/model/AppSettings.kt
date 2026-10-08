@@ -17,6 +17,7 @@ public data class AppSettings(
     val homeTimelineLoadNewerNearTop: Boolean = true,
     val tintPostsByNetwork: Boolean = true,
     val timelineMultipleColumns: Boolean = false,
+    val sideBySideOnWideScreens: Boolean = true,
 ) {
     public companion object {
         // for SwiftUI environment defaults

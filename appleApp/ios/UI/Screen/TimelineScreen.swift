@@ -15,7 +15,9 @@ struct TimelineScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @State var presenter: KotlinPresenter<TimelineItemPresenterState>
     @State private var isAtTop = true
-    @State private var isNearTop = true
+    @State private var firstVisibleIndex = 0
+    // Newly loaded posts the reader hasn't scrolled up to yet.
+    @State private var unreadAbove = 0
     @State private var readingPositionSync: ReadingPositionSync?
     @State private var isTabRefreshInFlight = false
     init(
@@ -46,9 +48,31 @@ struct TimelineScreen: View {
             allowGalleryMode: allowGalleryMode,
             accessoryItems: accessoryItems,
             onIsAtTopChanged: { isAtTop = $0 },
-            onIsNearTopChanged: { isNearTop = $0 },
+            onFirstVisibleIndexChanged: {
+                firstVisibleIndex = $0
+                unreadAbove = min(unreadAbove, $0)
+            },
             readingPositionSync: readingPositionSync
         )
+            .overlay(alignment: .top) {
+                if unreadAbove > 0 {
+                    Button {
+                        readingPositionSync?.scrollToTop()
+                    } label: {
+                        Label("\(unreadAbove) new", systemImage: "arrow.up")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .accessibilityLabel(Text("\(unreadAbove) new posts, scroll to top"))
+                }
+            }
+            .animation(.snappy, value: unreadAbove > 0)
+            .onChange(of: presenter.state.newerLoadedCount) { old, new in
+                unreadAbove += max(Int(new) - Int(old), 0)
+            }
             .environment(\.timelineAppearance, tabItem.resolveTimelineAppearance(base: timelineAppearance))
             .refreshable {
                 await refresh()
@@ -71,6 +95,9 @@ struct TimelineScreen: View {
                 await loadNewerOnActivation()
             }
     }
+
+    // Within a few posts of the newest one: close enough to keep loading newer posts above.
+    private var isNearTop: Bool { firstVisibleIndex < 5 }
 
     // Coming back to the app fetches what was posted meanwhile, wherever the reader is.
     private func loadNewerOnActivation() async {

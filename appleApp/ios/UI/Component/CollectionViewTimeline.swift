@@ -6,6 +6,7 @@ import CHTCollectionViewWaterfallLayout
 
 enum TimelineUIKitLayoutMetrics {
     static let horizontalInset: CGFloat = 16
+    static let readableColumnWidth: CGFloat = 680
     static let columnSpacing: CGFloat = 8
     static let rowSpacing: CGFloat = 2
     static let timelinePlaceholderCount = 5
@@ -25,7 +26,7 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
     // Changing a non-nil key replaces the list while retaining its scroll position.
     let contentKey: AnyHashable?
     let onIsAtTopChanged: (Bool) -> Void
-    let onIsNearTopChanged: (Bool) -> Void
+    let onFirstVisibleIndexChanged: (Int) -> Void
     let readingPositionSync: ReadingPositionSync?
     @Environment(\.timelineAppearance) private var timelineAppearance
     @Environment(\.globalAppearance) private var globalAppearance
@@ -47,7 +48,7 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
         suppressInitialRefreshIndicator: Bool = false,
         contentKey: AnyHashable? = nil,
         onIsAtTopChanged: @escaping (Bool) -> Void = { _ in },
-        onIsNearTopChanged: @escaping (Bool) -> Void = { _ in },
+        onFirstVisibleIndexChanged: @escaping (Int) -> Void = { _ in },
         readingPositionSync: ReadingPositionSync? = nil
     ) {
         self.data = data
@@ -60,7 +61,7 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
         self.suppressInitialRefreshIndicator = suppressInitialRefreshIndicator
         self.contentKey = contentKey
         self.onIsAtTopChanged = onIsAtTopChanged
-        self.onIsNearTopChanged = onIsNearTopChanged
+        self.onFirstVisibleIndexChanged = onFirstVisibleIndexChanged
         self.readingPositionSync = readingPositionSync
     }
 
@@ -79,7 +80,7 @@ struct UITimelineCollectionView: UIViewControllerRepresentable {
             { await action() }
         }
         controller.onIsAtTopChanged = onIsAtTopChanged
-        controller.onIsNearTopChanged = onIsNearTopChanged
+        controller.onFirstVisibleIndexChanged = onFirstVisibleIndexChanged
         controller.readingPositionSync = readingPositionSync
         controller.topContentInset = topContentInset
         controller.topScrollIndicatorInset = topContentInset
@@ -124,7 +125,6 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
 
     // Use Int for section and String for item to avoid Sendable issues
     private static let sectionAccessories = 0
-    private static let nearTopItemCount = 5
     private static let sectionMain = 1
     private static let sectionFooter = 2
     nonisolated private static let sectionHeader = 3
@@ -153,7 +153,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
 
     var refreshCallback: (() async -> Void)?
     var onIsAtTopChanged: ((Bool) -> Void)?
-    var onIsNearTopChanged: ((Bool) -> Void)?
+    var onFirstVisibleIndexChanged: ((Int) -> Void)?
     var readingPositionSync: ReadingPositionSync? {
         didSet { readingPositionSync?.target = self }
     }
@@ -324,7 +324,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
     private var pendingRefreshControlOffsetY: CGFloat?
     private var hasCompletedInitialRefreshCycle = false
     private var lastReportedIsAtTop: Bool?
-    private var lastReportedIsNearTop: Bool?
+    private var lastReportedFirstVisibleIndex: Int?
     private var renderedPlan: SnapshotPlan?
     private var lastRenderHashMap: [String: Int32] { renderedPlan?.renderHashMap ?? [:] }
     private struct Input {
@@ -438,7 +438,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
             rememberProfileMediaScrollAnchor()
         }
         reportIsAtTop()
-        reportIsNearTop()
+        reportFirstVisibleIndex()
         revealRefreshControlIfNeeded()
         // Insets or a size change can finish/cancel a refresh reveal without a
         // scroll-end delegate callback. Resume its queued input on the next layout.
@@ -529,6 +529,12 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
         }
         collectionView.keyboardDismissMode = .interactive
         collectionView.delegate = self
+        // Content scrolls under the title bar and the floating tab bar. The default soft
+        // edge lets posts show through both; a hard edge cuts them off cleanly.
+        if #available(iOS 26.0, *) {
+            collectionView.topEdgeEffect.style = .hard
+            collectionView.bottomEdgeEffect.style = .hard
+        }
         collectionView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(collectionView)
         NSLayoutConstraint.activate([
@@ -667,11 +673,17 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
     private func waterfallInsets(for section: Int, layout: CHTCollectionViewWaterfallLayout) -> UIEdgeInsets {
         guard contentKind == .profileMedia else {
             if sectionIdentifier(at: section) == Self.sectionAccessories { return .zero }
+            // Wide screens centre a single column at a readable line length instead of
+            // stretching text and media across the whole display.
+            let readableInset = (collectionView.bounds.width - TimelineUIKitLayoutMetrics.readableColumnWidth) / 2
             if sectionIdentifier(at: section) == Self.sectionHeader {
-                let inset = max(appearance.isPlainTimelineDisplayMode ? 0 : TimelineUIKitLayoutMetrics.horizontalInset, (collectionView.bounds.width - 600) / 2)
+                let inset = max(appearance.isPlainTimelineDisplayMode ? 0 : TimelineUIKitLayoutMetrics.horizontalInset, readableInset)
                 return UIEdgeInsets(top: 0, left: inset, bottom: 0, right: inset)
             }
-            return columnCount == 1 && appearance.isPlainTimelineDisplayMode ? .zero : layout.sectionInset
+            let base = columnCount == 1 && appearance.isPlainTimelineDisplayMode ? UIEdgeInsets.zero : layout.sectionInset
+            guard columnCount == 1 else { return base }
+            let inset = max(base.left, readableInset)
+            return UIEdgeInsets(top: base.top, left: inset, bottom: base.bottom, right: inset)
         }
         switch sectionIdentifier(at: section) {
         case Self.sectionAccessories:
@@ -1363,15 +1375,14 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
         onIsAtTopChanged?(isAtTop)
     }
 
-    // Within a few posts of the newest one: close enough to keep loading newer posts above.
-    private func reportIsNearTop() {
-        let firstVisible = collectionView.indexPathsForVisibleItems
+    // How many posts sit above the first visible one; 0 at the top.
+    private func reportFirstVisibleIndex() {
+        let firstVisible = effectiveContentOffsetY <= 1 ? 0 : collectionView.indexPathsForVisibleItems
             .compactMap { dataSource.itemIdentifier(for: $0).flatMap { itemIndexMap[$0] } }
             .min()
-        let isNearTop = effectiveContentOffsetY <= 1 || (firstVisible.map { $0 < Self.nearTopItemCount } ?? false)
-        guard lastReportedIsNearTop != isNearTop else { return }
-        lastReportedIsNearTop = isNearTop
-        onIsNearTopChanged?(isNearTop)
+        guard let firstVisible, lastReportedFirstVisibleIndex != firstVisible else { return }
+        lastReportedFirstVisibleIndex = firstVisible
+        onFirstVisibleIndexChanged?(firstVisible)
     }
 
     private var allowsScrollAnchorRestoration: Bool {
@@ -1868,7 +1879,7 @@ final class UITimelineCollectionViewController: UIViewController, UICollectionVi
             rememberProfileMediaScrollAnchor()
         }
         reportIsAtTop()
-        reportIsNearTop()
+        reportFirstVisibleIndex()
         onContentOffsetChanged?(effectiveContentOffsetY)
         autoplay.didScroll()
     }
@@ -1922,6 +1933,11 @@ extension UITimelineCollectionViewController: ReadingPositionTarget {
               let index = itemIndexMap[id], content.items.indices.contains(index),
               let post = content.items[index]?.post else { return }
         readingPositionSync.save(itemID: id, createdAt: post.createdAt.platformValue)
+    }
+
+    func scrollToTop() {
+        collectionView.beginProgrammaticScrolling()
+        collectionView.setContentOffset(CGPoint(x: collectionView.contentOffset.x, y: -collectionView.adjustedContentInset.top), animated: true)
     }
 
     func scrollToReadingPosition(itemID: String, createdAt: Date) {

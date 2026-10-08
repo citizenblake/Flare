@@ -90,10 +90,14 @@ public struct CommonProfileHeader: View {
                 .frame(height: CommonProfileHeaderConstants.headerHeight)
                 .clipped()
             } else {
-                Rectangle()
-                    .foregroundColor(.gray)
-                    .frame(height: CommonProfileHeaderConstants.headerHeight)
-                    .clipped()
+                // No banner image: a soft accent wash instead of a flat grey block.
+                LinearGradient(
+                    colors: [Color.accentColor.opacity(0.45), Color.accentColor.opacity(0.12)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: CommonProfileHeaderConstants.headerHeight)
+                .clipped()
             }
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -220,7 +224,7 @@ public struct CommonProfileHeader: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .textSelection(.enabled)
             HStack {
-                Text(user.handle.canonical)
+                Text(user.handle.display)
                     .font(.subheadline)
                     .foregroundColor(.gray)
                     .textSelection(.enabled)

@@ -67,6 +67,8 @@ final class AdaptiveTimelineCardUIView: UIView, ManualLayoutMeasurable, Timeline
     private func applyMode() {
         cardBackground.fillColor = (tint ?? .secondarySystemGroupedBackground).resolvedColor(with: traitCollection).cgColor
         backgroundColor = useCardStyle ? nil : tint
+        // The system separator reads as a heavy dark line on a tinted row.
+        divider.backgroundColor = tint == nil ? .separator : UIColor.label.withAlphaComponent(0.12)
         if useCardStyle {
             cardBackground.isHidden = false
             divider.isHidden = true

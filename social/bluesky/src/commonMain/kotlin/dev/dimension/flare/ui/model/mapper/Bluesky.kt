@@ -1051,7 +1051,7 @@ internal fun PostView.render(
                                     userActionsMenu(
                                         accountKey = accountKey,
                                         userKey = user.key,
-                                        handle = user.handle.canonical,
+                                        handle = user.handle.display,
                                     ),
                                 )
                                 add(ActionMenu.Divider)
@@ -1114,6 +1114,7 @@ internal fun chat.bsky.actor.ProfileViewBasic.render(accountKey: MicroBlogKey): 
             UiHandle(
                 raw = handle.handle,
                 host = accountKey.host,
+                showsHost = false,
             ),
         key = userKey,
         banner = null,
@@ -1152,6 +1153,7 @@ internal fun ProfileViewBasic.render(accountKey: MicroBlogKey): UiProfile {
             UiHandle(
                 raw = handle.handle,
                 host = accountKey.host,
+                showsHost = false,
             ),
         key = userKey,
         banner = null,
@@ -1190,6 +1192,7 @@ internal fun ProfileView.render(accountKey: MicroBlogKey): UiProfile {
             UiHandle(
                 raw = handle.handle,
                 host = accountKey.host,
+                showsHost = false,
             ),
         key = userKey,
         banner = null,
@@ -1228,6 +1231,7 @@ internal fun ProfileViewDetailed.render(accountKey: MicroBlogKey): UiProfile {
             UiHandle(
                 raw = handle.handle,
                 host = accountKey.host,
+                showsHost = false,
             ),
         key = userKey,
         banner = banner?.uri.toUiImage(),

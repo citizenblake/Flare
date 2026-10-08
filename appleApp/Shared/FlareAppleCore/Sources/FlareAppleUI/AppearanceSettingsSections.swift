@@ -99,14 +99,6 @@ public struct AppearanceLayoutSettingsSection<PostActionLayoutLink: View>: View 
                 Text("appearance_deck_mode", bundle: FlareAppleUILocalization.bundle)
                 Text("appearance_deck_mode_description", bundle: FlareAppleUILocalization.bundle)
             }
-            Toggle(isOn: Binding(get: {
-                appSettings.timelineMultipleColumns
-            }, set: { newValue in
-                presenter.state.updateTimelineMultipleColumns(value: newValue)
-            })) {
-                Text("Multiple columns")
-                Text("Show timelines in several columns on wide screens such as iPad")
-            }
             #endif
         }
         Section {
@@ -200,16 +192,6 @@ public struct AppearanceDisplaySettingsSection: View {
                 Text("appearance_show_platform_logo", bundle: FlareAppleUILocalization.bundle)
                 Text("appearance_show_platform_logo_description", bundle: FlareAppleUILocalization.bundle)
             }
-            #if os(iOS)
-            Toggle(isOn: Binding(get: {
-                appSettings.tintPostsByNetwork
-            }, set: { newValue in
-                presenter.state.updateTintPostsByNetwork(value: newValue)
-            })) {
-                Text("Tint posts by network")
-                Text("Bluesky posts get a pale blue background, Mastodon posts a pale purple one.")
-            }
-            #endif
             Toggle(isOn: Binding(get: {
                 timelineAppearance.showEmojiReactions
             }, set: { newValue in
@@ -260,16 +242,7 @@ public struct BehaviorSettingsSection<LinkOpenDefaultsLink: View>: View {
                 Text("settings_refresh_home_timeline_on_launch", bundle: FlareAppleUILocalization.bundle)
                 Text("settings_refresh_home_timeline_on_launch_description", bundle: FlareAppleUILocalization.bundle)
             }
-            #if os(iOS)
-            Toggle(isOn: Binding(get: {
-                appSettings.homeTimelineLoadNewerNearTop
-            }, set: { newValue in
-                presenter.state.updateHomeTimelineLoadNewerNearTop(value: newValue)
-            })) {
-                Text("Load newer posts near the top")
-                Text("While you're within 5 posts of the top, Home adds newer posts above without moving your place.")
-            }
-            #else
+            #if !os(iOS)
             Picker(selection: Binding(get: {
                 appSettings.homeTimelineAutoRefreshInterval
             }, set: { newValue in
@@ -384,7 +357,7 @@ private struct LinkOpenDefaultSelectedOptionLabel: View {
     var body: some View {
         if let account = option.account {
             StateView(state: account.profile) { user in
-                Text(user.handle.canonical)
+                Text(user.handle.display)
             } errorContent: { error in
                 Text(error.message ?? "Unknown error")
             } loadingContent: {
@@ -416,7 +389,7 @@ private struct LinkOpenDefaultAccountRow: View {
     var body: some View {
         StateView(state: account.profile) { user in
             Label {
-                Text(user.handle.canonical)
+                Text(user.handle.display)
             } icon: {
                 AvatarView(data: user.avatar?.url, customHeader: user.avatar?.customHeaders)
             }

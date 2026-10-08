@@ -15,6 +15,8 @@ import dev.dimension.flare.data.datasource.microblog.NotificationTimelineDataSou
 import dev.dimension.flare.data.datasource.microblog.datasource.NotificationDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.UserDataSource
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
+import dev.dimension.flare.data.model.tab.MixedTimelineLoaderFactory
+import dev.dimension.flare.data.model.tab.TimelineMergePolicy
 import dev.dimension.flare.data.repository.AccountRepository
 import dev.dimension.flare.data.repository.accountServiceFlow
 import dev.dimension.flare.data.repository.allAccountServicesFlow
@@ -108,6 +110,9 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
     private val selectedAccountFlow = MutableStateFlow<UiProfile?>(null)
     private val selectedNotificationFilterFlow = MutableStateFlow<NotificationFilter?>(null)
 
+    // One time-ordered list across every account instead of the selected account's.
+    private val allAccountsFlow = MutableStateFlow(false)
+
     @androidx.compose.runtime.Immutable
     public interface State {
         public val notifications: ImmutableList<NotificationAccountItem>
@@ -116,9 +121,12 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
         public val selectedFilter: NotificationFilter?
         public val selectedAccount: UiProfile?
         public val selectedAccountIndex: Int
+        public val allAccounts: Boolean
 
         @WebIgnore
         public fun setAccount(profile: UiProfile)
+
+        public fun setAllAccounts(value: Boolean)
 
         public fun setAccountKey(key: MicroBlogKey)
 
@@ -148,19 +156,40 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
     private val timelinePresenter by lazy {
         object : TimelinePresenter() {
             override val loader: Flow<RemoteLoader<UiTimelineV2>> by lazy {
-                combine(
-                    selectedNotificationFilterFlow.filterNotNull(),
-                    selectedAccountFlow.filterNotNull(),
-                ) { filter, profile -> filter to profile.key }
-                    .distinctUntilChanged()
-                    .flatMapLatest { (filter, accountKey) ->
-                        accountServiceFlow(AccountType.Specific(accountKey), accountRepository)
-                            .map {
-                                require(it is NotificationTimelineDataSource)
-                                it.notification(filter)
-                            }.distinctUntilChanged()
-                    }
+                allAccountsFlow.flatMapLatest { allAccounts ->
+                    if (allAccounts) mergedLoader else selectedAccountLoader
+                }
             }
+
+            private val selectedAccountLoader: Flow<RemoteLoader<UiTimelineV2>>
+                get() =
+                    combine(
+                        selectedNotificationFilterFlow.filterNotNull(),
+                        selectedAccountFlow.filterNotNull(),
+                    ) { filter, profile -> filter to profile.key }
+                        .distinctUntilChanged()
+                        .flatMapLatest { (filter, accountKey) ->
+                            accountServiceFlow(AccountType.Specific(accountKey), accountRepository)
+                                .map {
+                                    require(it is NotificationTimelineDataSource)
+                                    it.notification(filter)
+                                }.distinctUntilChanged()
+                        }
+
+            // Only the "all" filter: not every network can filter, and a filtered merge
+            // would silently drop the ones that can't.
+            private val mergedLoader: Flow<RemoteLoader<UiTimelineV2>>
+                get() =
+                    allAccountServicesFlow(accountRepository)
+                        .map { services -> services.filterIsInstance<NotificationTimelineDataSource>() }
+                        // A new merged loader restarts the list, so only when the accounts change.
+                        .distinctUntilChanged { old, new -> old.map { it.accountKey } == new.map { it.accountKey } }
+                        .map { services ->
+                            MixedTimelineLoaderFactory.create(
+                                loaders = services.map { it.notification(NotificationFilter.All) },
+                                mergePolicy = TimelineMergePolicy.Time,
+                            )
+                        }
         }
     }
 
@@ -180,6 +209,7 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
             }
         }
         val selectedNotificationFilter by selectedNotificationFilterFlow.collectAsState()
+        val allAccounts by allAccountsFlow.collectAsState()
         val notificationFilters by notificationFiltersFlow.collectAsUiState()
 
         notificationFilters.onSuccess {
@@ -204,9 +234,14 @@ public class AllNotificationPresenter : PresenterBase<AllNotificationPresenter.S
             override val selectedFilter = selectedNotificationFilter
             override val selectedAccount = selectedAccount
             override val selectedAccountIndex = selectedAccountIndex
+            override val allAccounts = allAccounts
 
             override fun setAccount(profile: UiProfile) {
                 selectedAccountFlow.value = profile
+            }
+
+            override fun setAllAccounts(value: Boolean) {
+                allAccountsFlow.value = value
             }
 
             override fun setAccountKey(key: MicroBlogKey) {

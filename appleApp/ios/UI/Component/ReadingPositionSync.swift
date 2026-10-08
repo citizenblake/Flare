@@ -3,6 +3,7 @@ import UIKit
 @MainActor
 protocol ReadingPositionTarget: AnyObject {
     func scrollToReadingPosition(itemID: String, createdAt: Date)
+    func scrollToTop()
 }
 
 /// Shares a timeline's reading position across the user's devices through iCloud
@@ -44,6 +45,10 @@ final class ReadingPositionSync {
 
     isolated deinit {
         observers.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    func scrollToTop() {
+        target?.scrollToTop()
     }
 
     func userDidScroll() {

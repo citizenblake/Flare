@@ -168,7 +168,7 @@ public struct DiscoverContentScreen<AskAiOverlay: View>: View {
                                 }
                             })) {
                                 Label {
-                                    Text(account.handle.canonical)
+                                    Text(account.handle.display)
                                 } icon: {
                                     AvatarView(data: account.avatar?.url, customHeader: account.avatar?.customHeaders)
                                 }
@@ -182,7 +182,7 @@ public struct DiscoverContentScreen<AskAiOverlay: View>: View {
                                     customHeader: selectedAccount.avatar?.customHeaders
                                 )
                                 .frame(width: 24, height: 24)
-                                Text(selectedAccount.handle.canonical)
+                                Text(selectedAccount.handle.display)
                                 Image(fontAwesome: .chevronDown)
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
@@ -232,7 +232,7 @@ public struct DiscoverContentScreen<AskAiOverlay: View>: View {
                         .frame(width: 26, height: 26)
                     }
                     .buttonStyle(.plain)
-                    .help(toolbarAccount.handle.canonical)
+                    .help(toolbarAccount.handle.display)
                     .popover(isPresented: $isMacAccountPopoverPresented, arrowEdge: .top) {
                         MacDiscoverAccountPopover(
                             accounts: accounts,
@@ -388,7 +388,7 @@ private struct MacDiscoverAccountRow: View {
                 AvatarView(data: account.avatar?.url, customHeader: account.avatar?.customHeaders)
                     .frame(width: 28, height: 28)
 
-                Text(account.handle.canonical)
+                Text(account.handle.display)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -466,8 +466,9 @@ private struct DiscoverHashtagSection: View {
                     Button {
                         onSelect(item.hashtag)
                     } label: {
-                        Text(item.hashtag)
+                        Text(item.hashtag.hasPrefix("#") ? item.hashtag : "#\(item.hashtag)")
                             .lineLimit(1)
+                            .foregroundStyle(.tint)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                     }

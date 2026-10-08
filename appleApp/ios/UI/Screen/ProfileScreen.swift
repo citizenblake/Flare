@@ -455,6 +455,7 @@ private struct ProfileTimelineCollectionView: UIViewControllerRepresentable {
     @Environment(\.networkKind) private var networkKind
     @Environment(\.openURL) private var openURL
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.appSettings) private var appSettings
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -479,7 +480,8 @@ private struct ProfileTimelineCollectionView: UIViewControllerRepresentable {
         let appearance = TimelineUIKitAppearance(
             timeline: timelineAppearance,
             fontSizeDiff: globalAppearance.fontSizeDiff,
-            showOriginalWithTranslation: translateConfig.showOriginalWithTranslation
+            showOriginalWithTranslation: translateConfig.showOriginalWithTranslation,
+            tintByNetwork: appSettings.tintPostsByNetwork
         )
         let accessories = context.coordinator.updateAccessories(
             showsProfileAccessories: showsProfileAccessories,
@@ -1524,7 +1526,7 @@ private struct ProfileHeaderAccessorySignature: Equatable {
                 "success",
                 String(describing: success.data.key),
                 success.data.name.raw,
-                success.data.handle.canonical,
+                success.data.handle.display,
                 success.data.avatar?.url ?? "",
                 success.data.banner?.url ?? "",
                 success.data.description_?.raw ?? "",

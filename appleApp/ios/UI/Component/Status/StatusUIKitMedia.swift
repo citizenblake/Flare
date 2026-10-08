@@ -1299,9 +1299,17 @@ private final class AltTextButton: UIButton {
     init(text: String) {
         self.altText = text
         super.init(frame: .zero)
+        // A small badge: the default bordered button covered a good part of the image.
         var cfg = UIButton.Configuration.bordered()
         cfg.title = "ALT"
         cfg.cornerStyle = .medium
+        cfg.buttonSize = .mini
+        cfg.contentInsets = NSDirectionalEdgeInsets(top: 3, leading: 6, bottom: 3, trailing: 6)
+        cfg.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var attributes = attributes
+            attributes.font = .systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption2).pointSize, weight: .semibold)
+            return attributes
+        }
         configuration = cfg
         accessibilityLabel = String(
             localized: "media_view_alt_text",

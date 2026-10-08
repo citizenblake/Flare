@@ -128,6 +128,12 @@ public class SettingsPresenter : PresenterBase<SettingsPresenter.State>() {
                 }
             }
 
+            override fun updateSideBySideOnWideScreens(value: Boolean) {
+                updateAppSettings {
+                    copy(sideBySideOnWideScreens = value)
+                }
+            }
+
             override fun updateTimelineMultipleColumns(value: Boolean) {
                 updateAppSettings {
                     copy(timelineMultipleColumns = value)
@@ -231,6 +237,8 @@ public class SettingsPresenter : PresenterBase<SettingsPresenter.State>() {
         public fun updateTintPostsByNetwork(value: Boolean)
 
         public fun updateTimelineMultipleColumns(value: Boolean)
+
+        public fun updateSideBySideOnWideScreens(value: Boolean)
 
         @WebIgnore
         public fun updateAppSettings(block: AppSettings.() -> AppSettings)

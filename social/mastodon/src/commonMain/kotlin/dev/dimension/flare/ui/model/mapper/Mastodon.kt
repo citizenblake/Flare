@@ -693,7 +693,7 @@ private fun Status.renderStatus(
                                         userActionsMenu(
                                             accountKey = accountKey,
                                             userKey = actualUser.key,
-                                            handle = actualUser.handle.canonical,
+                                            handle = actualUser.handle.display,
                                         ),
                                     )
                                     add(ActionMenu.Divider)
