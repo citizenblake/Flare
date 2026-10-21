@@ -4,6 +4,7 @@ import UIKit
 @preconcurrency import KotlinSharedUI
 import FlareAppleCore
 import FlareAppleUI
+import SwiftUIBackports
 
 struct TimelineScreen: View {
     let tabItem: UiTimelineTabItem
@@ -13,11 +14,10 @@ struct TimelineScreen: View {
     @Environment(\.timelineAppearance) private var timelineAppearance
     @Environment(\.appSettings) private var appSettings
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State var presenter: KotlinPresenter<TimelineItemPresenterState>
     @State private var isAtTop = true
     @State private var firstVisibleIndex = 0
-    // Newly loaded posts the reader hasn't scrolled up to yet.
-    @State private var unreadAbove = 0
     @State private var readingPositionSync: ReadingPositionSync?
     @State private var isTabRefreshInFlight = false
     init(
@@ -48,34 +48,38 @@ struct TimelineScreen: View {
             allowGalleryMode: allowGalleryMode,
             accessoryItems: accessoryItems,
             onIsAtTopChanged: { isAtTop = $0 },
-            onFirstVisibleIndexChanged: {
-                firstVisibleIndex = $0
-                unreadAbove = min(unreadAbove, $0)
-            },
+            onFirstVisibleIndexChanged: { firstVisibleIndex = $0 },
             readingPositionSync: readingPositionSync
         )
-            .overlay(alignment: .top) {
-                if unreadAbove > 0 {
+            .environment(\.timelineAppearance, tabItem.resolveTimelineAppearance(base: timelineAppearance))
+        .environment(\.timelineReading, presenter.state.reading)
+        .overlay(alignment: .top) {
+            VStack(spacing: 0) {
+                if presenter.state.reading?.hasNewContent == true {
                     Button {
-                        readingPositionSync?.scrollToTop()
+                        presenter.state.reading?.showLatest()
                     } label: {
-                        Label("\(unreadAbove) new", systemImage: "arrow.up")
-                            .font(.subheadline.weight(.semibold))
+                        Label("home_timeline_view_latest", systemImage: "chevron.up.2")
+                            .font(.subheadline)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .accessibilityLabel(Text("\(unreadAbove) new posts, scroll to top"))
+                    .buttonStyle(.plain)
+                    .backport
+                    .glassEffect(.regularInteractive, in: .capsule, fallbackBackground: .regularMaterial)
+                    .accessibilityIdentifier("home-new-content")
+                    .transition(reduceMotion ? .opacity : .move(edge: .top))
                 }
             }
-            .animation(.snappy, value: unreadAbove > 0)
-            .onChange(of: presenter.state.newerLoadedCount) { old, new in
-                unreadAbove += max(Int(new) - Int(old), 0)
-            }
-            .environment(\.timelineAppearance, tabItem.resolveTimelineAppearance(base: timelineAppearance))
+            .animation(
+                reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.3, dampingFraction: 1),
+                value: presenter.state.reading?.hasNewContent == true
+            )
+            .clipped()
+            .padding(.top, 8)
+        }
             .refreshable {
-                await refresh()
+                try? await presenter.state.refreshSuspend()
             }
             .onReceive(NotificationCenter.default.publisher(for: .tabDoubleTapped)) { notification in
                 guard notification.object as? String == HomeTabsPresenterStateHomeTabs.home.name.lowercased(),
@@ -85,10 +89,10 @@ struct TimelineScreen: View {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 Task {
                     defer { isTabRefreshInFlight = false }
-                    await refresh()
+                    try? await presenter.state.refreshSuspend()
                 }
             }
-            .task(id: "\(isHomeTimeline)-\(isNearTop)-\(scenePhase)-\(appSettings.homeTimelineLoadNewerNearTop)") {
+            .task(id: "\(isHomeTimeline)-\(isNearTop)-\(scenePhase)-\(appSettings.homeTimelineLoadNewerNearTop)-\(appSettings.rememberHomeTimelinePosition)") {
                 try? await loadNewerWhileNearTop()
             }
             .task(id: scenePhase) {
@@ -99,29 +103,24 @@ struct TimelineScreen: View {
     // Within a few posts of the newest one: close enough to keep loading newer posts above.
     private var isNearTop: Bool { firstVisibleIndex < 5 }
 
-    // Coming back to the app fetches what was posted meanwhile, wherever the reader is.
-    private func loadNewerOnActivation() async {
-        guard isHomeTimeline, appSettings.homeTimelineLoadNewerNearTop, scenePhase == .active, !isNearTop,
-              case .success = onEnum(of: presenter.state.listState) else { return }
-        _ = try? await presenter.state.loadNewerSuspend(refreshIfUncached: false)
+    // Background refreshes only run while Home remembers the reading position: that is
+    // what makes a refresh insert newer posts above instead of replacing the timeline.
+    private var canRefreshInBackground: Bool {
+        isHomeTimeline && appSettings.homeTimelineLoadNewerNearTop && appSettings.rememberHomeTimelinePosition
     }
 
-    // Home inserts newer posts above the loaded ones so the reader keeps their place;
-    // a full refresh would replace the timeline. Other timelines keep the full refresh.
-    private func refresh() async {
-        if isHomeTimeline, case .success = onEnum(of: presenter.state.listState) {
-            _ = try? await presenter.state.loadNewerSuspend(refreshIfUncached: true)
-        } else {
-            try? await presenter.state.refreshSuspend()
-        }
+    // Coming back to the app fetches what was posted meanwhile, wherever the reader is.
+    private func loadNewerOnActivation() async {
+        guard canRefreshInBackground, scenePhase == .active, !isNearTop,
+              case .success = onEnum(of: presenter.state.listState) else { return }
+        try? await presenter.state.refreshSuspend()
     }
 
     private func loadNewerWhileNearTop() async throws {
-        guard isHomeTimeline, isNearTop, appSettings.homeTimelineLoadNewerNearTop, scenePhase == .active else { return }
+        guard canRefreshInBackground, isNearTop, scenePhase == .active else { return }
         while true {
-            // Never a full refresh here: it would replace the timeline the reader is in.
             if !presenter.state.isRefreshing, case .success = onEnum(of: presenter.state.listState) {
-                _ = try? await presenter.state.loadNewerSuspend(refreshIfUncached: false)
+                try? await presenter.state.refreshSuspend()
             }
             // Servers don't push new posts, so re-check while the reader stays near the top.
             // ponytail: Mastodon streaming could replace the poll for that side.

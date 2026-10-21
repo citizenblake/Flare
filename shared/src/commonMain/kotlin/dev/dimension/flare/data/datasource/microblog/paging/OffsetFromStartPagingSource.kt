@@ -16,11 +16,9 @@ internal sealed interface OffsetFromStartPagingKey {
         val offset: Int,
     ) : OffsetFromStartPagingKey
 
-    // [anchor] is the item at [anchorPosition] before the refresh. Rows inserted above it
-    // move it down; the reload grows by that shift so the item being read stays loaded.
     data class Refresh(
         val limit: Int,
-        val anchor: Any? = null,
+        val anchorId: String? = null,
         val anchorPosition: Int = 0,
     ) : OffsetFromStartPagingKey
 }
@@ -31,8 +29,9 @@ internal interface OffsetFromStartPageLoader<Item : Any> {
         limit: Int,
     ): List<Item>
 
-    /** The item's current offset from the start, or null when it can't be told. */
-    suspend fun offsetOf(item: Item): Int? = null
+    fun refreshAnchorId(item: Item): String? = null
+
+    suspend fun loadRefresh(key: OffsetFromStartPagingKey.Refresh): List<Item> = load(0, key.limit)
 
     fun observeInvalidations(invalidate: () -> Unit): PageInvalidationSubscription? = null
 }
@@ -54,7 +53,8 @@ internal class OffsetFromStartPagingSource<Item : Any>(
         invalidationSubscription?.ready?.await()
         val offset: Int
         val limit: Int
-        when (val key = params.key) {
+        val key = params.key
+        when (key) {
             null -> {
                 offset = 0
                 limit = params.loadSize
@@ -67,14 +67,16 @@ internal class OffsetFromStartPagingSource<Item : Any>(
 
             is OffsetFromStartPagingKey.Refresh -> {
                 offset = 0
-                @Suppress("UNCHECKED_CAST")
-                val anchorOffset = (key.anchor as? Item)?.let { loader.offsetOf(it) }
-                val shift = maxOf((anchorOffset ?: key.anchorPosition) - key.anchorPosition, 0)
-                limit = maxOf(params.loadSize, key.limit) + shift
+                limit = maxOf(params.loadSize, key.limit)
             }
         }
 
-        val data = loader.load(offset = offset, limit = limit)
+        val data =
+            if (key is OffsetFromStartPagingKey.Refresh) {
+                loader.loadRefresh(key.copy(limit = limit))
+            } else {
+                loader.load(offset = offset, limit = limit)
+            }
         return LoadResult.Page(
             data = data,
             prevKey = null,
@@ -92,10 +94,7 @@ internal class OffsetFromStartPagingSource<Item : Any>(
                 state.config.initialLoadSize,
                 anchorPosition + 1 + state.config.pageSize + state.config.prefetchDistance,
             )
-        return OffsetFromStartPagingKey.Refresh(
-            limit = limit,
-            anchor = state.closestItemToPosition(anchorPosition),
-            anchorPosition = anchorPosition,
-        )
+        val anchorId = state.closestItemToPosition(anchorPosition)?.let(loader::refreshAnchorId)
+        return OffsetFromStartPagingKey.Refresh(limit, anchorId, if (anchorId != null) anchorPosition else 0)
     }
 }

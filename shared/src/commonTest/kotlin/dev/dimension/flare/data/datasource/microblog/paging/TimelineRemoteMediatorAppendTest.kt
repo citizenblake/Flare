@@ -122,41 +122,6 @@ class TimelineRemoteMediatorAppendTest : RobolectricTest() {
             assertEquals(otherRows, database.pagingTimelineDao().getByPagingKey(other.pagingKey))
         }
 
-    @Test
-    fun loadNewerPagesDownToTheCacheAndInsertsAboveItWithoutDroppingRows() =
-        runTest {
-            var refresh = PagingResult<UiTimelineV2>(listOf(post(10), post(11), post(12)), nextKey = "old")
-            val mediator =
-                mediator("featured") { request ->
-                    when (request) {
-                        PagingRequest.Append("p2") -> PagingResult(listOf(post(8), post(9), post(10)), nextKey = "p3")
-                        else -> refresh
-                    }
-                }
-            mediator.loadPage(LoadType.REFRESH)
-
-            refresh = PagingResult(listOf(post(5), post(6), post(7)), nextKey = "p2")
-            assertEquals(5, mediator.loadNewer(pageSize = 3))
-            assertEquals((5..12).toList(), postOrder(mediator.pagingKey))
-
-            assertEquals(0, mediator.loadNewer(pageSize = 3))
-            assertEquals((5..12).toList(), postOrder(mediator.pagingKey))
-        }
-
-    @Test
-    fun launchWithACacheKeepsItAndLoadsNewerPostsAboveInsteadOfRefreshing() =
-        runTest {
-            var response = PagingResult<UiTimelineV2>(listOf(post(10), post(11)), nextKey = "old")
-            mediator("featured") { response }.loadPage(LoadType.REFRESH)
-
-            response = PagingResult(listOf(post(8), post(9), post(10)), nextKey = "p2")
-            val relaunched = mediator("featured") { response }
-            assertEquals(RemoteMediator.InitializeAction.SKIP_INITIAL_REFRESH, relaunched.initialize())
-            relaunched.loadPage(LoadType.PREPEND)
-
-            assertEquals(listOf(8, 9, 10, 11), postOrder(relaunched.pagingKey))
-        }
-
     private fun mediator(
         pagingKey: String,
         response: (PagingRequest) -> PagingResult<UiTimelineV2>,

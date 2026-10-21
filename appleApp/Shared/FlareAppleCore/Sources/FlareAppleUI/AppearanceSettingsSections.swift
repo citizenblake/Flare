@@ -242,6 +242,14 @@ public struct BehaviorSettingsSection<LinkOpenDefaultsLink: View>: View {
                 Text("settings_refresh_home_timeline_on_launch", bundle: FlareAppleUILocalization.bundle)
                 Text("settings_refresh_home_timeline_on_launch_description", bundle: FlareAppleUILocalization.bundle)
             }
+            Toggle(isOn: Binding(get: {
+                appSettings.rememberHomeTimelinePosition
+            }, set: { newValue in
+                presenter.state.updateRememberHomeTimelinePosition(value: newValue)
+            })) {
+                Text("settings_remember_home_timeline_position", bundle: FlareAppleUILocalization.bundle)
+                Text("settings_remember_home_timeline_position_description", bundle: FlareAppleUILocalization.bundle)
+            }
             #if !os(iOS)
             Picker(selection: Binding(get: {
                 appSettings.homeTimelineAutoRefreshInterval

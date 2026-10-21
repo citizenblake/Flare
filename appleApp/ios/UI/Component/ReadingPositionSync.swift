@@ -3,13 +3,13 @@ import UIKit
 @MainActor
 protocol ReadingPositionTarget: AnyObject {
     func scrollToReadingPosition(itemID: String, createdAt: Date)
-    func scrollToTop()
 }
 
 /// Shares a timeline's reading position across the user's devices through iCloud
 /// key-value storage. Saved whenever scrolling stops; another device's position is
 /// applied only just after this app becomes active and before the user scrolls,
-/// so it never moves a timeline that is being read.
+/// so it never moves a timeline that is being read. This device's own position is
+/// restored by the shared timeline (Remember Home reading position), not here.
 @MainActor
 final class ReadingPositionSync {
     private static let applyWindow: TimeInterval = 15
@@ -20,8 +20,6 @@ final class ReadingPositionSync {
     private let store = NSUbiquitousKeyValueStore.default
     private var activatedAt = Date()
     private var userScrolled = false
-    // A fresh launch starts at the top, so this device's own last position is restored once.
-    private var restoresOwnPosition = true
     private var observers: [NSObjectProtocol] = []
 
     init(timelineKey: String) {
@@ -47,13 +45,8 @@ final class ReadingPositionSync {
         observers.forEach(NotificationCenter.default.removeObserver)
     }
 
-    func scrollToTop() {
-        target?.scrollToTop()
-    }
-
     func userDidScroll() {
         userScrolled = true
-        restoresOwnPosition = false
     }
 
     func save(itemID: String, createdAt: Date) {
@@ -72,11 +65,10 @@ final class ReadingPositionSync {
     private func applyRemoteIfFresh() {
         guard !userScrolled, Date().timeIntervalSince(activatedAt) < Self.applyWindow,
               let saved = store.dictionary(forKey: key),
-              restoresOwnPosition || saved["device"] as? String != Self.deviceID,
+              saved["device"] as? String != Self.deviceID,
               let id = saved["id"] as? String,
               let createdAt = saved["createdAt"] as? TimeInterval else { return }
         guard let target else { return }
-        restoresOwnPosition = false
         target.scrollToReadingPosition(itemID: id, createdAt: Date(timeIntervalSince1970: createdAt))
     }
 }

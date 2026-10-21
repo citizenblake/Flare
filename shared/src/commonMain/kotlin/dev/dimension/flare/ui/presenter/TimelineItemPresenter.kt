@@ -20,16 +20,13 @@ public class TimelineItemPresenter(
 
     public interface State {
         public val listState: PagingState<UiTimelineV2>
+        public val reading: TimelineReadingState? get() = null
 
         public fun refreshSync()
 
         public suspend fun refreshSuspend()
 
-        public suspend fun loadNewerSuspend(refreshIfUncached: Boolean): Int = 0
-
         public val isRefreshing: Boolean
-
-        public val newerLoadedCount: Int get() = 0
     }
 
     private val timelinePresenter by lazy {
@@ -42,8 +39,8 @@ public class TimelineItemPresenter(
         val scope = rememberCoroutineScope()
         return object : State {
             override val listState = state.listState
+            override val reading = state.reading
             override val isRefreshing = listState.isRefreshing
-            override val newerLoadedCount = state.newerLoadedCount
 
             override fun refreshSync() {
                 scope.launch {
@@ -54,8 +51,6 @@ public class TimelineItemPresenter(
             override suspend fun refreshSuspend() {
                 state.refresh()
             }
-
-            override suspend fun loadNewerSuspend(refreshIfUncached: Boolean): Int = state.loadNewer(refreshIfUncached)
         }
     }
 }

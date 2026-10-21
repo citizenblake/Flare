@@ -54,8 +54,10 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -309,36 +311,27 @@ public class ComposePresenter(
         MutableStateFlow(0)
     }
 
-    private val remainingLengthFlow by lazy {
-        combine(
-            textFlow,
-            composeConfigFlow,
-        ) { text, config ->
-            text to config.text
-        }.flatMapLatest { (text, config) ->
-            config?.remainingLength(text)?.map<Int, Int?> { it } ?: flowOf(null)
+    private val spoilerTextFlow = MutableStateFlow<String?>(null)
+
+    private val textCheckFlow by lazy {
+        combine(textFlow, spoilerTextFlow, composeConfigFlow) { text, spoilerText, config ->
+            Triple(text, spoilerText, config.text)
+        }.flatMapLatest { (text, spoilerText, config) ->
+            config?.remainingLength(text, spoilerText)?.map<ComposeConfig.Text.Check, ComposeConfig.Text.Check?> { it } ?: flowOf(null)
         }.distinctUntilChanged()
     }
 
     private val canSendFlow by lazy {
-        combine(
-            textFlow,
-            mediaSizeFlow,
-            remainingLengthFlow,
-            selectedComposeAccountKeysFlow,
-            composeConfigFlow,
-        ) {
+        combine(textFlow, mediaSizeFlow, textCheckFlow, selectedComposeAccountKeysFlow, composeConfigFlow) {
             text,
             mediaSize,
-            remainingLength,
+            check,
             selectedAccountKeys,
             composeConfig,
             ->
-            (
-                text.isNotBlank() && text.isNotEmpty() && selectedAccountKeys.isNotEmpty() &&
-                    (remainingLength == null || remainingLength >= 0)
-            ) ||
-                ((text.isEmpty() || text.isBlank()) && composeConfig.media?.allowMediaOnly == true && mediaSize > 0)
+            check?.isValid != false && selectedAccountKeys.isNotEmpty() && (
+                text.isNotBlank() || (composeConfig.media?.allowMediaOnly == true && mediaSize > 0)
+            )
         }
     }
 
@@ -434,7 +427,7 @@ public class ComposePresenter(
         val emojiState by emojiFlow.flattenUiState()
         val enableCrossPost by enableCrossPostFlow.collectAsUiState()
         val composeConfig: UiState<ComposeConfig> by composeConfigFlow.collectAsUiState()
-        val remainingLength by remainingLengthFlow.collectAsState(null)
+        val textCheck by textCheckFlow.collectAsState(null)
         val canSend by canSendFlow.collectAsState(false)
         val loadedDraftState by loadedDraftStateFlow.collectAsState()
         val editingDraftGroupId by editingDraftGroupIdFlow.collectAsState()
@@ -608,7 +601,7 @@ public class ComposePresenter(
             composeStatus = composeStatus,
             showDraft = showDraft,
             directSendState = directSendState,
-            remainingLength = remainingLength,
+            remainingLength = textCheck?.remainingLength,
             pollMaxOptions = pollMaxOptions,
             contentWarningEnabled = contentWarningEnabled,
             mediaEnabled = mediaEnabled,
@@ -627,24 +620,20 @@ public class ComposePresenter(
                 data: ComposeData,
                 onDispatched: (Boolean) -> Unit,
             ) {
-                scope.launch {
-                    val selectedAccounts = selectedAccountsFlow.firstOrNull().orEmpty()
-                    if (selectedAccounts.isNotEmpty()) {
-                        composeUseCase.invoke(
-                            accounts = selectedAccounts,
-                            data = data,
-                            groupId = editingDraftGroupIdFlow.value ?: newDraftGroupId(),
-                            onPrepared = {
-                                withContext(Dispatchers.Main) {
-                                    onDispatched(true)
-                                }
-                            },
-                        )
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            onDispatched(false)
-                        }
-                    }
+                scope.launchComposeWithAccounts(selectedAccountsFlow, onDispatched) { selectedAccounts ->
+                    composeUseCase.invoke(
+                        accounts = selectedAccounts,
+                        data = data,
+                        groupId = editingDraftGroupIdFlow.value ?: newDraftGroupId(),
+                        onPrepared = {
+                            withContext(Dispatchers.Main) {
+                                onDispatched(true)
+                            }
+                        },
+                        onPreparationFailed = {
+                            withContext(Dispatchers.Main) { onDispatched(false) }
+                        },
+                    )
                 }
             }
 
@@ -767,6 +756,10 @@ public class ComposePresenter(
                 textFlow.value = value
             }
 
+            override fun setSpoilerText(value: String?) {
+                spoilerTextFlow.value = value
+            }
+
             override fun setMediaSize(value: Int) {
                 mediaSizeFlow.value = value
             }
@@ -785,29 +778,25 @@ public class ComposePresenter(
                 data: ComposeData,
                 onDispatched: (Boolean) -> Unit,
             ) {
-                scope.launch {
-                    val selectedAccounts = selectedAccountsFlow.firstOrNull().orEmpty()
-                    if (selectedAccounts.isNotEmpty()) {
-                        val groupId =
-                            editingDraftGroupIdFlow.value ?: draftGroupId ?: newDraftGroupId()
-                        composeUseCase.saveDraft(
-                            accounts = selectedAccounts,
-                            data = data,
-                            groupId = groupId,
-                            onSaved = {
-                                withContext(Dispatchers.Main) {
-                                    if (editingDraftGroupIdFlow.value.isNullOrEmpty() && groupId.isNotEmpty()) {
-                                        editingDraftGroupIdFlow.value = groupId
-                                    }
-                                    onDispatched(true)
+                scope.launchComposeWithAccounts(selectedAccountsFlow, onDispatched) { selectedAccounts ->
+                    val groupId =
+                        editingDraftGroupIdFlow.value ?: draftGroupId ?: newDraftGroupId()
+                    composeUseCase.saveDraft(
+                        accounts = selectedAccounts,
+                        data = data,
+                        groupId = groupId,
+                        onSaved = {
+                            withContext(Dispatchers.Main) {
+                                if (editingDraftGroupIdFlow.value.isNullOrEmpty() && groupId.isNotEmpty()) {
+                                    editingDraftGroupIdFlow.value = groupId
                                 }
-                            },
-                        )
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            onDispatched(false)
-                        }
-                    }
+                                onDispatched(true)
+                            }
+                        },
+                        onFailure = {
+                            withContext(Dispatchers.Main) { onDispatched(false) }
+                        },
+                    )
                 }
             }
         }
@@ -930,6 +919,28 @@ internal fun observeSelectedComposeAccountKeys(
             .filter { key -> allAccounts.containsKey(key) }
             .toImmutableList()
     }.distinctUntilChanged()
+
+internal fun CoroutineScope.launchComposeWithAccounts(
+    accounts: Flow<List<UiAccount>>,
+    onDispatched: (Boolean) -> Unit,
+    dispatch: (List<UiAccount>) -> Unit,
+) {
+    // Install cleanup before the composer's scope can be cancelled.
+    launch(start = CoroutineStart.UNDISPATCHED) {
+        var handedOff = false
+        try {
+            val selectedAccounts = accounts.firstOrNull().orEmpty()
+            if (selectedAccounts.isNotEmpty()) {
+                dispatch(selectedAccounts)
+                handedOff = true
+            }
+        } finally {
+            if (!handedOff) {
+                withContext(NonCancellable + Dispatchers.Main) { onDispatched(false) }
+            }
+        }
+    }
+}
 
 internal fun observeComposeStatusTarget(
     activeStatusFlow: Flow<ComposeStatus?>,
@@ -1059,6 +1070,8 @@ public abstract class ComposeState(
     public abstract fun selectAccount(accountKey: MicroBlogKey)
 
     public abstract fun setText(value: String)
+
+    public abstract fun setSpoilerText(value: String?)
 
     public abstract fun setMediaSize(value: Int)
 

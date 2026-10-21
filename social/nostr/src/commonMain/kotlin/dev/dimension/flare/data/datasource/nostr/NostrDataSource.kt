@@ -186,6 +186,7 @@ internal class NostrDataSource(
     override fun homeTimeline(): RemoteLoader<UiTimelineV2> =
         object : CacheableRemoteLoader<UiTimelineV2> {
             override val pagingKey: String = "home_$accountKey"
+            override val canJoinTimeline: Boolean = true
 
             override suspend fun load(
                 pageSize: Int,
@@ -470,7 +471,7 @@ internal class NostrDataSource(
         }
     }
 
-    override suspend fun compose(
+    override suspend fun publish(
         data: ComposeData,
         progress: () -> Unit,
     ) {
@@ -527,7 +528,6 @@ internal class NostrDataSource(
 
     override fun composeConfig(type: ComposeType): ComposeConfig =
         ComposeConfig(
-            text = ComposeConfig.Text(65535),
             contentWarning = ComposeConfig.ContentWarning,
             media =
                 ComposeConfig.Media(

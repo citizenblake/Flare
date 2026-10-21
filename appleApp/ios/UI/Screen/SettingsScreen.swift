@@ -158,8 +158,9 @@ struct TimelineReadingSettingsSection: View {
                 presenter.state.updateHomeTimelineLoadNewerNearTop(value: newValue)
             })) {
                 Text("Load newer posts near the top")
-                Text("While you're within 5 posts of the top, Home adds newer posts above without moving your place.")
+                Text("While you're within 5 posts of the top, Home adds newer posts above without moving your place. Needs \"Remember Home reading position\".")
             }
+            .disabled(!appSettings.rememberHomeTimelinePosition)
             Toggle(isOn: Binding(get: {
                 appSettings.tintPostsByNetwork
             }, set: { newValue in
