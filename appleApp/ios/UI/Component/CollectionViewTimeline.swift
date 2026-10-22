@@ -2065,7 +2065,7 @@ extension UITimelineCollectionViewController: ReadingPositionTarget {
 
     fileprivate func saveReadingPosition() {
         guard let readingPositionSync,
-              case .item(let id, _, _) = collectionView.captureReadingPosition(),
+              case .item(let id, _, _, _) = collectionView.captureReadingPosition(),
               let index = itemIndexMap[id], content.items.indices.contains(index),
               let post = content.items[index]?.post else { return }
         readingPositionSync.save(itemID: id, createdAt: post.createdAt.platformValue)
